@@ -1,0 +1,121 @@
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.conda/
+
+# ============================================
+# Jupyter Notebooks
+# ============================================
+.ipynb_checkpoints/
+
+# ============================================
+# ML Model Artifacts
+# ============================================
+# Checkpoints, weights, saved models
+*.pt
+*.pth
+*.onnx
+*.h5
+*.hdf5
+*.keras
+*.pkl
+*.joblib
+*.safetensors
+checkpoints/
+runs/
+mlruns/
+wandb/
+lightning_logs/
+outputs/
+
+# TensorBoard logs
+*.tfevents*
+
+# ============================================
+# Geospatial Data (large files)
+# ============================================
+# Raster imagery
+*.tif
+*.tiff
+*.geotiff
+*.img
+*.jp2
+*.ecw
+*.sid
+*.vrt
+
+# Vector formats
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.kml
+*.kmz
+
+# Geodatabases
+*.gdb/
+*.gpkg
+
+# Note: GeoJSON can be large or small.
+# Uncomment the line below if your GeoJSONs are large.
+# *.geojson
+
+# ============================================
+# Other Data & Output
+# ============================================
+data/
+output/
+results/
+predictions/
+tiles/
+annotations/
+*.csv
+*.parquet
+*.npy
+*.npz
+*.zip
+*.tar.gz
+*.7z
+
+# ============================================
+# Config & Secrets
+# ============================================
+.env
+.env.*
+*.secret
+credentials/
+
+# ============================================
+# IDE & OS
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================
+# Specific
+# ============================================
+
+subset_pytest/
