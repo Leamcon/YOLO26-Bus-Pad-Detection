@@ -9,6 +9,8 @@ import numpy as np
 import rasterio
 from rasterio.mask import mask as rio_mask
 from osgeo import gdal
+
+gdal.UseExceptions()
 from pathlib import Path
 from typing import Optional
 from shapely.geometry import mapping
@@ -67,7 +69,6 @@ def clip_to_boundary(
             geom_mapping,
             crop=True,
             filled=True,
-            fill_value=0,
             nodata=0,
         )
 
