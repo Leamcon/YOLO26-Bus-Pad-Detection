@@ -23,6 +23,8 @@ def export_for_yolo(geotiff_path: Path, output_dir: Optional[Path] = None) -> Pa
             "width": src.width,
             "height": src.height,
             "count": 3,
+            "quality": "100",
+            "reversible": "YES",
             # No CRS, no transform — intentionally omitted
         }
 
