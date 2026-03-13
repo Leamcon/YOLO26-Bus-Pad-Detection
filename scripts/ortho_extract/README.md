@@ -38,6 +38,12 @@ Extract with YOLO export:
 python -m scripts.ortho_extract.extract --boro_cd 401 --yolo
 ```
 
+Export YOLO JP2s from existing GeoTIFFs (skips tile selection, mosaic, and clip):
+
+```bash
+python -m scripts.ortho_extract.extract --boro_cd 401 402 403 --yolo_only
+```
+
 Override default paths:
 
 ```bash
@@ -75,6 +81,17 @@ output/ortho_extracts/
     ├── ortho_104.jp2      # 3-band RGB, no spatial reference
     └── ortho_108.jp2
 ```
+
+## CLI Flags
+
+| Flag | Effect |
+|---|---|
+| `--boro_cd` | Required. One or more community district codes to process. |
+| `--yolo` | After extraction, also export 3-band RGB JP2 for YOLO ingestion. |
+| `--yolo_only` | Skip extraction entirely. Produce JP2 exports from existing GeoTIFFs. Implies `--yolo`. Warns and skips if a GeoTIFF does not exist for a given `boro_cd`. |
+| `--data_dir` | Override default tile data root directory. |
+| `--boundary_shp` | Override default boundary shapefile path. |
+| `--output_dir` | Override default output directory. |
 
 ## Design Decisions
 

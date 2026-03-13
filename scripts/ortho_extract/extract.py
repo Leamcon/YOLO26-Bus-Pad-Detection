@@ -4,6 +4,7 @@ Main extraction script.
 Usage (from project root):
     python -m scripts.ortho_extract.extract --boro_cd 401 402 403
     python -m scripts.ortho_extract.extract --boro_cd 101 --yolo
+    python -m scripts.ortho_extract.extract --boro_cd 101 --yolo_only
     python -m scripts.ortho_extract.extract --boro_cd 301 302 --data_dir /path/to/data --output_dir /path/to/output
 """
 
@@ -51,7 +52,19 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also export 3-band non-spatial JP2 for YOLO ingestion.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--yolo_only",
+        action="store_true",
+        help="Export JP2 from existing GeoTIFFs only. Skips tile selection and mosaic/clip.",
+    )
+
+    args = parser.parse_args()
+
+    # --yolo_only implies --yolo; no need for both
+    if args.yolo_only:
+        args.yolo = True
+
+    return args
 
 
 def main():
@@ -70,6 +83,16 @@ def main():
         boro_cd = int(row["boro_cd"])
         geometry = row.geometry
         print(f"\nProcessing boro_cd {boro_cd}...")
+
+        if args.yolo_only:
+            # Skip extraction, just produce JP2 from existing GeoTIFF
+            geotiff_path = output_dir / f"ortho_{boro_cd}.tif"
+            if not geotiff_path.exists():
+                print(f"  SKIPPED: no existing GeoTIFF at {geotiff_path}")
+                continue
+            yolo_path = export_for_yolo(geotiff_path, output_dir / "yolo")
+            results.append({"boro_cd": boro_cd, "geotiff": geotiff_path, "yolo_jp2": yolo_path})
+            continue
 
         # Step 1: tile selection
         tile_paths = select_tiles_for_feature(
