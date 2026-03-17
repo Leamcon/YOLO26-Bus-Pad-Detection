@@ -116,7 +116,7 @@ chips/
 
 // https://app.roboflow.com/join/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3b3Jrc3BhY2VJZCI6Ilh5M2VsWWlyZVlYQ25pVGIzWHJUVkttQ21XQzMiLCJyb2xlIjoib3duZXIiLCJpbnZpdGVyIjoid2VuZHl6aGVuZzk1MEBnbWFpbC5jb20iLCJpYXQiOjE3NzMyNTQ5OTV9.v9xaw2IVPN42nkdInImmwEgjVIAs8kw4D00T7FCgo2A
 
-//put all data in ^
+//put all data^, chipping script may not be totally accurate can check if no_pad has buspad then also upload it to Roboflow
 
 
 1. Go to [roboflow.com](https://roboflow.com) → sign up free
