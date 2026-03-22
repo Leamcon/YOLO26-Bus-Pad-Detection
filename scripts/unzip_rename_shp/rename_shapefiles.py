@@ -9,7 +9,7 @@ Usage:
 If output dir is omitted, defaults to ./data
 """
 
-import sys
+import argparse
 import zipfile
 import shutil
 from pathlib import Path
@@ -72,31 +72,31 @@ def rename_shapefile_set(zip_path: Path, output_dir: Path, dry_run: bool = False
     print(f"  {zip_path.name}: {renamed} files -> {dest_dir.relative_to(output_dir)}/ ({old_basename} -> {new_basename})")
 
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <zip_directory> [output_directory] [--dry-run]")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description='Unzip and rename shapefiles to match their zip filename.'
+    )
+    parser.add_argument('zip_dir', type=Path, help='Directory containing .zip files')
+    parser.add_argument('output_dir', type=Path, nargs='?', default=Path('./data'),
+                        help='Output directory (default: ./data)')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Preview changes without moving any files')
+    args = parser.parse_args()
 
-    zip_dir = Path(sys.argv[1])
-    output_dir = Path(sys.argv[2]) if len(sys.argv) > 2 and not sys.argv[2].startswith('--') else Path('./data')
-    dry_run = '--dry-run' in sys.argv
+    if not args.zip_dir.is_dir():
+        parser.error(f"{args.zip_dir} is not a directory")
 
-    if not zip_dir.is_dir():
-        print(f"Error: {zip_dir} is not a directory")
-        sys.exit(1)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    zips = sorted(zip_dir.glob('*.zip'))
+    zips = sorted(args.zip_dir.glob('*.zip'))
     if not zips:
-        print(f"No .zip files found in {zip_dir}")
-        sys.exit(1)
+        parser.error(f"No .zip files found in {args.zip_dir}")
 
-    print(f"Processing {len(zips)} zip files -> {output_dir}")
-    if dry_run:
+    print(f"Processing {len(zips)} zip files -> {args.output_dir}")
+    if args.dry_run:
         print("(DRY RUN — no files will be moved)\n")
 
     for z in zips:
-        rename_shapefile_set(z, output_dir, dry_run=dry_run)
+        rename_shapefile_set(z, args.output_dir, dry_run=args.dry_run)
 
     print("\nDone.")
 
