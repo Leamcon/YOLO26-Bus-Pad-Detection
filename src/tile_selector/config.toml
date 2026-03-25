@@ -1,0 +1,26 @@
+[paths]
+boundary_shapefile = "data/boundaries/community_districts_20260306/geo_export_e1c55842-b6cf-48de-89dd-fb84825c0f0d.shp"
+ortho_base_dir = "data/nyc_ortho_2024"
+output_base_dir = "output/cd"
+
+[paths.patterns]
+# {boro_name} is substituted at runtime
+boro_dir = "boro_{boro_name}_sp24"
+mosaic_shapefile = "24_b_{boro_name}_l06_4bd.shp"
+image_extension = ".jp2"
+
+[spatial]
+target_crs = 2263  # EPSG:2263 - NY State Plane Long Island (ft)
+
+[fields]
+boundary_cd_field = "boro_cd"
+mosaic_image_field = "Image"
+
+[boroughs]
+# leading digit of boro_cd -> directory name component
+[boroughs.mapping]
+1 = "manhattan"
+2 = "bronx"
+3 = "brooklyn"
+4 = "queens"
+5 = "staten_island"
