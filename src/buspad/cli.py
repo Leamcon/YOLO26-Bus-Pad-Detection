@@ -1,0 +1,206 @@
+"""
+buspad/cli.py
+=============
+CLI parsing and orchestration for the chip command.
+"""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+from .constants import VALID_BOROUGHS
+from .paths import (
+    resolve_ortho_dir,
+    discover_cds,
+    resolve_cd_files,
+    resolve_output_dir,
+    validate_cd_borough,
+)
+from .tile_index import get_or_build_index, find_tile_for_point
+from .io_shp import load_bus_stops
+from .chipper import chip_image
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="buspad",
+        description="Bus pad detection — image chipping pipeline.",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    chip = sub.add_parser("chip", help="Extract chips from aerial imagery.")
+    chip.add_argument(
+        "borough",
+        choices=VALID_BOROUGHS,
+        help="Target borough.",
+    )
+    chip.add_argument(
+        "--year",
+        type=int,
+        required=True,
+        help="Imagery year (YYYY).",
+    )
+    chip.add_argument(
+        "--cd",
+        type=str,
+        default=None,
+        help="Single community district code (3-digit). "
+             "Omit to process all available CDs for the borough.",
+    )
+    chip.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would be done without writing files.",
+    )
+    chip.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing chip files.",
+    )
+    chip.add_argument(
+        "--rebuild-index",
+        action="store_true",
+        help="Force rebuild of the tile spatial index cache.",
+    )
+
+    return parser
+
+
+def _chip_cd(
+    cd: str,
+    borough: str,
+    year: int,
+    tile_index: list[dict],
+    dry_run: bool,
+    force: bool,
+) -> dict:
+    """Process a single community district.  Returns a stats dict."""
+    stats = {
+        "cd": cd,
+        "has_pad_total": 0,
+        "no_pad_total": 0,
+        "has_pad_saved": 0,
+        "no_pad_saved": 0,
+        "skipped_existing": 0,
+        "skipped_no_tile": 0,
+        "failed": 0,
+    }
+
+    shp_path, dbf_path = resolve_cd_files(cd)
+    has_pad, no_pad = load_bus_stops(shp_path, dbf_path)
+    stats["has_pad_total"] = len(has_pad)
+    stats["no_pad_total"] = len(no_pad)
+
+    out_dir = resolve_output_dir(borough, year, cd)
+
+    if dry_run:
+        print(f"  [dry-run] CD {cd}: {len(has_pad)} pad, "
+              f"{len(no_pad)} no-pad stops")
+        return stats
+
+    groups = [
+        (has_pad, "has_pad", "pad"),
+        (no_pad, "no_pad", "nopad"),
+    ]
+
+    for stops, subfolder, prefix in groups:
+        dest = out_dir / subfolder
+        dest.mkdir(parents=True, exist_ok=True)
+
+        for stop_id, x, y in stops:
+            out_path = dest / f"{prefix}_{stop_id}.png"
+
+            if out_path.exists() and not force:
+                stats["skipped_existing"] += 1
+                continue
+
+            tile = find_tile_for_point(x, y, tile_index)
+            if tile is None:
+                stats["skipped_no_tile"] += 1
+                continue
+
+            ok = chip_image(tile["path"], x, y, out_path)
+            if ok:
+                key = "has_pad_saved" if subfolder == "has_pad" else "no_pad_saved"
+                stats[key] += 1
+            else:
+                stats["failed"] += 1
+
+    return stats
+
+
+def run_chip(args: argparse.Namespace) -> None:
+    """Orchestrate the chip command."""
+    borough = args.borough
+    year = args.year
+
+    # ── Resolve imagery ───────────────────────────────────────────────────
+    try:
+        ortho_dir = resolve_ortho_dir(borough, year)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Imagery: {ortho_dir}")
+
+    # ── Determine target CDs ─────────────────────────────────────────────
+    if args.cd is not None:
+        cd = args.cd.zfill(3)
+        try:
+            validate_cd_borough(cd, borough)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        cd_list = [cd]
+    else:
+        cd_list = discover_cds(borough)
+        if not cd_list:
+            print(f"Error: No point data found for {borough}.", file=sys.stderr)
+            sys.exit(1)
+
+    print(f"Target CDs: {', '.join(cd_list)}")
+
+    # ── Build / load tile index ──────────────────────────────────────────
+    print("Loading tile index...", end=" ", flush=True)
+    tile_index = get_or_build_index(ortho_dir, rebuild=args.rebuild_index)
+    print(f"{len(tile_index)} tiles.")
+
+    # ── Process each CD ──────────────────────────────────────────────────
+    all_stats = []
+    for cd in cd_list:
+        print(f"\nProcessing CD {cd}...")
+        try:
+            stats = _chip_cd(
+                cd, borough, year, tile_index,
+                dry_run=args.dry_run, force=args.force,
+            )
+            all_stats.append(stats)
+        except (FileNotFoundError, ValueError) as e:
+            print(f"  Skipping CD {cd}: {e}")
+            continue
+
+    # ── Summary ──────────────────────────────────────────────────────────
+    print(f"\n{'=' * 55}")
+    print(f"{'CD':<6} {'pad':>5} {'no-pad':>7} {'saved':>6} "
+          f"{'exist':>6} {'no-tile':>8} {'fail':>5}")
+    print(f"{'-' * 55}")
+    for s in all_stats:
+        saved = s["has_pad_saved"] + s["no_pad_saved"]
+        print(
+            f"{s['cd']:<6} {s['has_pad_total']:>5} {s['no_pad_total']:>7} "
+            f"{saved:>6} {s['skipped_existing']:>6} "
+            f"{s['skipped_no_tile']:>8} {s['failed']:>5}"
+        )
+    print(f"{'=' * 55}")
+
+    if args.dry_run:
+        print("\n[dry-run] No files were written.")
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if args.command == "chip":
+        run_chip(args)
