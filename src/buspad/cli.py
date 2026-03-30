@@ -1,21 +1,21 @@
 """
 buspad/cli.py
 =============
-CLI parsing and orchestration for the chip command.
+CLI parsing and orchestration for chip and list commands.
 """
 
 import argparse
-import os
 import sys
-from pathlib import Path
 
-from .constants import VALID_BOROUGHS
+from .constants import VALID_BOROUGHS, BOROUGH_CD_PREFIX
 from .paths import (
     resolve_ortho_dir,
     discover_cds,
+    discover_ortho_years,
     resolve_cd_files,
     resolve_output_dir,
     validate_cd_borough,
+    PROJECT_ROOT,
 )
 from .tile_index import get_or_build_index, find_tile_for_point
 from .io_shp import load_bus_stops
@@ -29,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
+    # ── chip command ──────────────────────────────────────────────────────
     chip = sub.add_parser("chip", help="Extract chips from aerial imagery.")
     chip.add_argument(
         "borough",
@@ -64,6 +65,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Force rebuild of the tile spatial index cache.",
     )
 
+    # ── list command ──────────────────────────────────────────────────────
+    sub.add_parser(
+        "list",
+        help="Report available imagery and point data on disk.",
+    )
+
     return parser
 
 
@@ -87,8 +94,8 @@ def _chip_cd(
         "failed": 0,
     }
 
-    shp_path, dbf_path = resolve_cd_files(cd)
-    has_pad, no_pad = load_bus_stops(shp_path, dbf_path)
+    shp_path, dbf_path, prj_path = resolve_cd_files(cd)
+    has_pad, no_pad = load_bus_stops(shp_path, dbf_path, prj_path)
     stats["has_pad_total"] = len(has_pad)
     stats["no_pad_total"] = len(no_pad)
 
@@ -198,9 +205,60 @@ def run_chip(args: argparse.Namespace) -> None:
         print("\n[dry-run] No files were written.")
 
 
+def run_list() -> None:
+    """Report available imagery and point data."""
+    reverse = {v: k for k, v in BOROUGH_CD_PREFIX.items()}
+
+    print(f"Project root: {PROJECT_ROOT}\n")
+
+    # ── Imagery ──────────────────────────────────────────────────────────
+    ortho = discover_ortho_years()
+    print("Imagery on disk:")
+    if ortho:
+        for borough in VALID_BOROUGHS:
+            years = ortho.get(borough, [])
+            if years:
+                print(f"  {borough:<16} {', '.join(str(y) for y in years)}")
+    else:
+        print("  (none found)")
+
+    # ── Point data ───────────────────────────────────────────────────────
+    print("\nPoint data on disk:")
+    all_cds = discover_cds()
+    if all_cds:
+        for borough in VALID_BOROUGHS:
+            prefix = BOROUGH_CD_PREFIX[borough]
+            boro_cds = [c for c in all_cds if c[0] == prefix]
+            if boro_cds:
+                print(f"  {borough:<16} {', '.join(boro_cds)}")
+    else:
+        print("  (none found)")
+
+    # ── Coverage gaps ────────────────────────────────────────────────────
+    print("\nCoverage notes:")
+    has_imagery = set(ortho.keys())
+    has_points = {
+        borough for borough in VALID_BOROUGHS
+        if any(c[0] == BOROUGH_CD_PREFIX[borough] for c in all_cds)
+    }
+    imagery_only = has_imagery - has_points
+    points_only = has_points - has_imagery
+
+    if imagery_only:
+        for b in sorted(imagery_only):
+            print(f"  {b}: imagery available but no point data")
+    if points_only:
+        for b in sorted(points_only):
+            print(f"  {b}: point data available but no imagery")
+    if not imagery_only and not points_only and has_imagery:
+        print("  All boroughs with imagery have matching point data.")
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "chip":
         run_chip(args)
+    elif args.command == "list":
+        run_list()

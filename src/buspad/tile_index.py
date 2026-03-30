@@ -15,7 +15,7 @@ from pathlib import Path
 
 import rasterio
 
-from .constants import TILE_INDEX_FILENAME, ACCEPTED_EPSG
+from .constants import TILE_INDEX_FILENAME, ACCEPTED_TILE_EPSG
 
 
 def _cache_path(ortho_dir: Path) -> Path:
@@ -40,10 +40,10 @@ def build_index(ortho_dir: Path) -> list[dict]:
         fpath = ortho_dir / fname
         with rasterio.open(fpath) as src:
             epsg = src.crs.to_epsg() if src.crs else None
-            if epsg not in ACCEPTED_EPSG:
+            if epsg not in ACCEPTED_TILE_EPSG:
                 raise ValueError(
                     f"Tile {fname} has EPSG:{epsg}; "
-                    f"expected one of {ACCEPTED_EPSG}."
+                    f"expected one of {ACCEPTED_TILE_EPSG}."
                 )
             b = src.bounds
             index.append({

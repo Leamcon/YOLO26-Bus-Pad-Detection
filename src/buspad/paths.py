@@ -119,20 +119,22 @@ def resolve_cd_dir(cd: str) -> Path:
     return p
 
 
-def resolve_cd_files(cd: str) -> tuple[Path, Path]:
-    """Return (shp_path, dbf_path) for a community district.
+def resolve_cd_files(cd: str) -> tuple[Path, Path, Path | None]:
+    """Return (shp_path, dbf_path, prj_path) for a community district.
 
     Expects filenames to follow the containing directory name.
-    Raises FileNotFoundError if either file is missing.
+    prj_path is None if no .prj file exists (CRS will be assumed).
+    Raises FileNotFoundError if .shp or .dbf is missing.
     """
     cd_dir = resolve_cd_dir(cd)
     basename = CD_DIR_PATTERN.format(cd=cd)
     shp = cd_dir / f"{basename}.shp"
     dbf = cd_dir / f"{basename}.dbf"
+    prj = cd_dir / f"{basename}.prj"
     for f in (shp, dbf):
         if not f.is_file():
             raise FileNotFoundError(f"Expected file not found: {f}")
-    return shp, dbf
+    return shp, dbf, prj if prj.is_file() else None
 
 
 def resolve_output_dir(borough: str, year: int, cd: str) -> Path:

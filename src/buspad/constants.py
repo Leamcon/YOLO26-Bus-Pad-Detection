@@ -31,12 +31,15 @@ OUTPUT_DIR_TEMPLATE = "output/chips/{yyyy}/{borough}/cd_{cd}"
 
 TILE_INDEX_FILENAME = ".tile_index.json"
 
-# ── Expected CRS families (EPSG codes) ───────────────────────────────────────
-# Both are NAD83 NY Long Island (ft); 2263 is the original datum, 6539 is
-# the 2011 realization.  Sub-pixel offset at 0.5 ft/px — safe to mix for
-# chipping, but we assert membership in this set rather than silently
-# accepting arbitrary projections.
-ACCEPTED_EPSG = {2263, 6539}
+# ── CRS configuration ────────────────────────────────────────────────────────
+# Both 2263 and 6539 are NAD83 NY Long Island (ft); 2263 is the original
+# datum, 6539 is the 2011 realization.  Sub-pixel offset at 0.5 ft/px —
+# safe to treat as equivalent for chipping.
+ACCEPTED_TILE_EPSG = {2263, 6539}
+
+# Canonical target CRS for all point data.  Points in other CRS (e.g.,
+# WGS84 / 4326) are reprojected to this on load.
+TARGET_EPSG = 2263
 
 # ── DBF field expectations ────────────────────────────────────────────────────
 STOP_ID_FIELD_INDEX = 10

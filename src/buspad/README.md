@@ -7,7 +7,7 @@ Extracts labeled image chips from georeferenced JP2 tiles at known bus stop loca
 ## Requirements
 
 ```
-pip install rasterio numpy Pillow
+pip install rasterio numpy Pillow pyproj
 ```
 
 Python 3.10+ (uses `X | Y` union type syntax).
@@ -148,7 +148,9 @@ On first run for a borough/year, the module reads georeferenced bounds from ever
 
 ## Coordinate reference systems
 
-Imagery tiles use EPSG:6539 (NAD83(2011) / NY Long Island, ft). Tile mosaics bundled with the imagery use EPSG:2263 (NAD83 / NY Long Island, ft). Both are State Plane Long Island projections; the datum offset between them is sub-pixel at 0.5 ft/px and does not affect chipping. The module asserts that all tiles belong to one of these two CRS families and will reject tiles with unexpected projections.
+Imagery tiles use EPSG:6539 (NAD83(2011) / NY Long Island, ft). Tile mosaics bundled with the imagery use EPSG:2263 (NAD83 / NY Long Island, ft). Both are State Plane Long Island projections; the datum offset between them is sub-pixel at 0.5 ft/px and does not affect chipping.
+
+Point data may arrive in any CRS. The module reads the `.prj` sidecar file for each shapefile and reprojects to EPSG:2263 (the canonical target) on load if needed. If no `.prj` file is present, coordinates are assumed to be in EPSG:2263 and a warning is logged. The module rejects imagery tiles with unexpected projections.
 
 ## Roboflow integration
 
