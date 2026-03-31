@@ -94,8 +94,8 @@ def _chip_cd(
         "failed": 0,
     }
 
-    shp_path, dbf_path, prj_path = resolve_cd_files(cd)
-    has_pad, no_pad = load_bus_stops(shp_path, dbf_path, prj_path)
+    shp_path, dbf_path = resolve_cd_files(cd)
+    has_pad, no_pad = load_bus_stops(shp_path, dbf_path)
     stats["has_pad_total"] = len(has_pad)
     stats["no_pad_total"] = len(no_pad)
 
@@ -205,6 +205,43 @@ def run_chip(args: argparse.Namespace) -> None:
         print("\n[dry-run] No files were written.")
 
 
+def _count_chips(year: int | None = None) -> dict:
+    """Count PNG files in the output chip directories.
+
+    Returns {borough: {cd: {"has_pad": int, "no_pad": int}}}.
+    If year is None, scans all years.
+    """
+    from .paths import _rooted
+    from .constants import OUTPUT_DIR_TEMPLATE
+
+    chip_root = _rooted("output/chips")
+    if not chip_root.is_dir():
+        return {}
+
+    results = {}
+    year_dirs = [chip_root / str(year)] if year else sorted(chip_root.iterdir())
+
+    for year_dir in year_dirs:
+        if not year_dir.is_dir():
+            continue
+        for boro_dir in sorted(year_dir.iterdir()):
+            if not boro_dir.is_dir():
+                continue
+            borough = boro_dir.name
+            for cd_dir in sorted(boro_dir.iterdir()):
+                if not cd_dir.is_dir():
+                    continue
+                cd = cd_dir.name.replace("cd_", "")
+                counts = {"has_pad": 0, "no_pad": 0}
+                for sub in ("has_pad", "no_pad"):
+                    d = cd_dir / sub
+                    if d.is_dir():
+                        counts[sub] = len(list(d.glob("*.png")))
+                results.setdefault(borough, {})[cd] = counts
+
+    return results
+
+
 def run_list() -> None:
     """Report available imagery and point data."""
     reverse = {v: k for k, v in BOROUGH_CD_PREFIX.items()}
@@ -252,6 +289,21 @@ def run_list() -> None:
             print(f"  {b}: point data available but no imagery")
     if not imagery_only and not points_only and has_imagery:
         print("  All boroughs with imagery have matching point data.")
+
+    # ── Chip counts ──────────────────────────────────────────────────────
+    chip_counts = _count_chips()
+    print("\nChips on disk:")
+    if chip_counts:
+        for borough in VALID_BOROUGHS:
+            if borough not in chip_counts:
+                continue
+            cds = chip_counts[borough]
+            boro_pad = sum(c["has_pad"] for c in cds.values())
+            boro_nopad = sum(c["no_pad"] for c in cds.values())
+            print(f"  {borough:<16} {boro_pad:>5} pad, {boro_nopad:>5} no-pad "
+                  f"({boro_pad + boro_nopad} total)")
+    else:
+        print("  (none found)")
 
 
 def main(argv: list[str] | None = None) -> None:
