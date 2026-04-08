@@ -86,6 +86,7 @@ results/
 predictions/
 tiles/
 annotations/
+qgis/
 *.csv
 *.parquet
 *.npy
