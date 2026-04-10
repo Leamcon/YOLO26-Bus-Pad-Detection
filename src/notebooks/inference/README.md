@@ -71,7 +71,13 @@ project/
 ### Stage 1 — Chipping (Local)
 
 ```bash
+# Via installed console script
 buspad-inference-chip data/nyc_ortho_2022/boro_staten_island_sp22 \
+    --overlap 20 \
+    --format jpg
+
+# Via python -m
+python -m buspad_inference_chipper data/nyc_ortho_2022/boro_staten_island_sp22 \
     --overlap 20 \
     --format jpg
 ```
@@ -136,7 +142,11 @@ python inference_colab.py /path/to/stage1_output /path/to/model.pt \
 ### Stage 3 — Georeferencing (Local)
 
 ```bash
+# Via installed console script
 buspad-georef output/chips/inference_2022/staten_island_2022
+
+# Via python -m
+python -m buspad_georef output/chips/inference_2022/staten_island_2022
 ```
 
 **Arguments:**
@@ -164,12 +174,14 @@ Detection centroid (640×640 space)
 ```bash
 # Stage 1: chip tiles
 buspad-inference-chip data/nyc_ortho_2022/boro_staten_island_sp22 --overlap 20
+# or: python -m buspad_inference_chipper data/nyc_ortho_2022/boro_staten_island_sp22 --overlap 20
 
 # Stage 2: upload to Colab, run inference, download predictions/ directory
 # Place predictions/ inside the Stage 1 output directory.
 
 # Stage 3: georeference
 buspad-georef output/chips/inference_2022/staten_island_2022
+# or: python -m buspad_georef output/chips/inference_2022/staten_island_2022
 ```
 
 Final output: `output/chips/inference_2022/staten_island_2022/detections.shp`
