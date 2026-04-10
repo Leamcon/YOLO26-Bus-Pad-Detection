@@ -36,6 +36,7 @@ env/
 *.joblib
 *.safetensors
 checkpoints/
+models/
 runs/
 mlruns/
 wandb/
