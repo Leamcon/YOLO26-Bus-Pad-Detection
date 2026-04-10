@@ -36,6 +36,7 @@ Install in Colab with `!pip install ultralytics -q`.
 
 ```
 project/
+├── .project-root                       # Anchor file for output path resolution
 ├── src/
 │   ├── buspad/                         # Core bus pad utilities (separate package)
 │   ├── buspad_inference_chipper/       # Stage 1 — chipping
@@ -86,7 +87,7 @@ buspad-inference-chip data/nyc_ortho_2022/boro_staten_island_sp22 \
 | `--output-dir` | No | Derived | Override the auto-derived output path. |
 
 **Output path derivation:**
-The input path is parsed for year and boro. `data/nyc_ortho_2022/boro_staten_island_sp22` produces `output/chips/inference_2022/staten_island_2022/`. If the path does not match the expected `nyc_ortho_{YYYY}/boro_{name}_sp{YY}` convention, `--output-dir` is required.
+The input path is parsed for year and boro. `data/nyc_ortho_2022/boro_staten_island_sp22` produces `{project_root}/output/chips/inference_2022/staten_island_2022/`. The project root is located by walking up from the script's location until a `.project-root` marker file is found. If the input path does not match the expected `nyc_ortho_{YYYY}/boro_{name}_sp{YY}` convention, `--output-dir` is required.
 
 **Outputs:**
 - `chips/` — 640×640 upscaled chip images, named `{tile_stem}_r{row}_c{col}.{ext}`.
@@ -176,6 +177,7 @@ Final output: `output/chips/inference_2022/staten_island_2022/detections.shp`
 
 ## Technical Notes
 
+- **Output path resolution:** Stage 1 anchors its default output to the project root, found by walking up the directory tree to the nearest `.project-root` marker file. This avoids cwd-dependent output paths. If the marker is missing, the script raises `FileNotFoundError`. Stages 2 and 3 derive output paths from their input arguments and are unaffected.
 - **Tile dimensions:** 5000×5000 px. Chip size is 200×200 px. With 0% overlap this yields 25×25 = 625 chips per tile. With 20% overlap (stride 160), 31×31 = 961 chips per tile.
 - **4th band:** JP2 tiles are 4-band. The 4th band is dropped; only RGB (bands 1–3) is chipped. Band identity is unknown (likely mask or alpha).
 - **Affine storage:** Coefficients are stored with explicit labels (`a`–`f`) in JSON to avoid GDAL/Affine ordering ambiguity. Stage 3 reconstructs the `Affine` object directly.
