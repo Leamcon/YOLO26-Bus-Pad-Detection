@@ -114,11 +114,6 @@ chips/
 
 ### STEP 3 — Label Images (Roboflow)
 
-// https://app.roboflow.com/join/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3b3Jrc3BhY2VJZCI6Ilh5M2VsWWlyZVlYQ25pVGIzWHJUVkttQ21XQzMiLCJyb2xlIjoib3duZXIiLCJpbnZpdGVyIjoid2VuZHl6aGVuZzk1MEBnbWFpbC5jb20iLCJpYXQiOjE3NzMyNTQ5OTV9.v9xaw2IVPN42nkdInImmwEgjVIAs8kw4D00T7FCgo2A
-
-//put all data^, chipping script may not be totally accurate can check if no_pad has buspad then also upload it to Roboflow
-
-
 1. Go to [roboflow.com](https://roboflow.com) → sign up free
 2. `New Project` → name: `buspad-detection` → type: `Object Detection`
 3. Upload all images from `chips/has_pad/`
@@ -184,17 +179,3 @@ shutil.copytree(
 )
 print('Model saved to Drive!')
 ```
-
----
-
-
-## Current Model Performance (Initial Run)
-
-| Metric | Value | Notes |
-|---|---|---|
-| mAP50 | 11.9% | Low — small dataset |
-| mAP50-95 | 3.5% | Needs more training data |
-| Recall | 66.7% | Finds 2 out of 3 bus pads |
-| Training images | ~15 labeled | Need 100-200 for good accuracy |
-| Epochs | 50 | |
-| Hardware | CPU | Use T4 GPU for better results |
