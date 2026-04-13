@@ -3,7 +3,7 @@ Stage 2 — YOLO Inference (Google Colab)
 Run batched inference on chipped imagery, output per-tile prediction CSVs.
 
 Usage in Colab:
-    1. Upload chip directory and offset CSVs from Stage 1.
+    1. Upload chips.zip from Stage 1 and unzip to /content/.
     2. Upload trained YOLO26n model weights (.pt).
     3. Run all cells.
 
@@ -16,12 +16,14 @@ Alternatively, run as script:
 
 import argparse
 import csv
+import shutil
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-# Colab-specific: install ultralytics if needed
+# Colab-specific: install ultralytics if needed, unzip chips
 # !pip install ultralytics -q
+# !unzip -q /content/chips.zip -d /content/
 
 from ultralytics import YOLO
 
@@ -42,8 +44,8 @@ def parse_args():
 # For Colab use: set these manually and skip parse_args()
 COLAB_MODE = False  # Set True when running in Colab
 COLAB_CONFIG = {
-    "input_dir": "/content/drive/MyDrive/chips/inference_2022/staten_island_2022",
-    "model_path": "/content/drive/MyDrive/models/yolo26n_buspad.pt",
+    "input_dir": "/content",
+    "model_path": "/content/models/best.pt",
     "batch_size": 64,
     "conf": 0.25,
     "output_dir": None,
@@ -169,6 +171,19 @@ def main(config: dict):
             print("0 detections")
 
     print(f"\nDone. {total_detections} total detections across {len(tile_groups)} tiles.")
+
+    # Zip predictions and trigger download in Colab
+    if COLAB_MODE:
+        zip_path = shutil.make_archive(
+            "/content/predictions",
+            "zip",
+            root_dir=str(input_dir),
+            base_dir="predictions",
+        )
+        print(f"Zipped predictions → {zip_path}")
+
+        from google.colab import files
+        files.download(zip_path)
 
 
 if __name__ == "__main__":

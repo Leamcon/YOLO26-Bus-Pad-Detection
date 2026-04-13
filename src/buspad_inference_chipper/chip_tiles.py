@@ -1,7 +1,7 @@
 """
 Stage 1 — Chipping Pipeline
-Chips JP2 tiles into 200x200 patches, upscales to 640x640, writes offset CSVs
-and a geotransform reference file.
+Chips JP2 tiles into 200x200 patches, upscales to 640x640, writes offset CSVs,
+a geotransform reference file, and a chips.zip for Colab upload.
 
 Usage:
     python chip_tiles.py data/nyc_ortho_2022/boro_staten_island_sp22 \
@@ -12,6 +12,7 @@ import argparse
 import csv
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -169,6 +170,19 @@ def write_tile_csv(output_dir: Path, tile_stem: str, records: list[dict]):
         writer.writerows(records)
 
 
+def zip_chips(output_dir: Path):
+    """Create chips.zip containing the chips/ directory, placed alongside it."""
+    zip_path = output_dir / "chips"  # shutil appends .zip
+    print(f"Zipping chips → {zip_path}.zip ...", end=" ", flush=True)
+    shutil.make_archive(
+        str(zip_path),
+        "zip",
+        root_dir=str(output_dir),
+        base_dir="chips",
+    )
+    print("done.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Stage 1: Chip JP2 tiles for YOLO inference.")
     parser.add_argument("input_dir", help="Path to directory containing .jp2 tiles.")
@@ -189,6 +203,11 @@ def main():
         "--output-dir",
         default=None,
         help="Explicit output directory. Overrides convention-based derivation.",
+    )
+    parser.add_argument(
+        "--no-zip",
+        action="store_true",
+        help="Skip zip creation for chips directory.",
     )
     args = parser.parse_args()
 
@@ -223,13 +242,22 @@ def main():
     for i, tile_path in enumerate(tiles, 1):
         print(f"[{i}/{len(tiles)}] {tile_path.name} ...", end=" ", flush=True)
 
-        records, gt_entry = chip_tile(tile_path, output_dir, stride, args.img_format)
+        try:
+            records, gt_entry = chip_tile(tile_path, output_dir, stride, args.img_format)
+        except OSError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            continue
 
         if not records:
             print("SKIPPED")
             continue
 
-        write_tile_csv(output_dir, tile_path.stem, records)
+        try:
+            write_tile_csv(output_dir, tile_path.stem, records)
+        except OSError as e:
+            print(f"ERROR writing offsets: {e}", file=sys.stderr)
+            continue
+
         geotransforms[tile_path.name] = gt_entry
         print(f"{len(records)} chips")
 
@@ -238,7 +266,13 @@ def main():
     with open(gt_path, "w") as f:
         json.dump(geotransforms, f, indent=2)
 
-    print(f"\nDone. {len(geotransforms)} tiles processed → {gt_path}")
+    print(f"\n{len(geotransforms)} tiles processed → {gt_path}")
+
+    # Zip chips for Colab upload
+    if not args.no_zip:
+        zip_chips(output_dir)
+
+    print("Done.")
 
 
 if __name__ == "__main__":

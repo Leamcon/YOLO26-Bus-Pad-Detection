@@ -1,13 +1,13 @@
 # Bus Pad Detection Pipeline
 
-Detects bus pads from aerial orthoimagery using a YOLO26n model. The pipeline chips georeferenced JP2 tiles, runs GPU inference, and produces a georeferenced point shapefile of detections in EPSG:6539.
+Detects bus pads from aerial orthoimagery using a YOLO26n model. The pipeline chips georeferenced JP2 tiles, runs GPU inference via Google Colab, and produces a georeferenced point shapefile of detections in EPSG:6539.
 
 ## Pipeline Overview
 
 | Stage | Script | Environment | Input | Output |
 |-------|--------|-------------|-------|--------|
-| 1 — Chipping | `buspad-inference-chip` | Local | JP2 tile directory | 640×640 chips, offset CSVs, geotransform JSON |
-| 2 — Inference | `inference_colab.py` | Google Colab (T4) | Chip directory | Per-tile prediction CSVs |
+| 1 — Chipping | `buspad-inference-chip` | Local | JP2 tile directory | 640×640 chips, offset CSVs, geotransform JSON, `chips.zip` |
+| 2 — Inference | `inference_colab.py` | Google Colab (T4) | `chips.zip` (uploaded) | Per-tile prediction CSVs, `predictions.zip` (downloaded) |
 | 3 — Georeferencing | `buspad-georef` | Local | Stage 1 + Stage 2 outputs | Point shapefile (EPSG:6539) |
 
 ## Requirements
@@ -61,9 +61,10 @@ project/
         └── inference_2022/
             └── staten_island_2022/
                 ├── chips/              # 640×640 chip images
+                ├── chips.zip           # Zipped chips/ for Colab upload
                 ├── offsets/            # Per-tile offset CSVs
                 ├── geotransforms.json  # Affine coefficients (labeled)
-                ├── predictions/        # Per-tile prediction CSVs (Stage 2)
+                ├── predictions/        # Per-tile prediction CSVs (from Stage 2)
                 └── detections.shp      # Final output (Stage 3)
 ```
 
@@ -85,33 +86,45 @@ buspad-inference-chip data/nyc_ortho_2022/boro_staten_island_sp22 \
 | `--overlap` | No | `20` | Overlap percentage. Must yield a stride that divides 4800 evenly. Valid examples: 0, 20, 25, 50. |
 | `--format` | No | `jpg` | Output image format (`jpg` or `png`). |
 | `--output-dir` | No | Derived | Override the auto-derived output path. |
+| `--no-zip` | No | `False` | Skip `chips.zip` creation. |
 
 **Output path derivation:**
 The input path is parsed for year and boro. `data/nyc_ortho_2022/boro_staten_island_sp22` produces `{project_root}/output/chips/inference_2022/staten_island_2022/`. The project root is located by walking up from the script's location until a `.project-root` marker file is found. If the input path does not match the expected `nyc_ortho_{YYYY}/boro_{name}_sp{YY}` convention, `--output-dir` is required.
 
 **Outputs:**
 - `chips/` — 640×640 upscaled chip images, named `{tile_stem}_r{row}_c{col}.{ext}`.
+- `chips.zip` — Zipped `chips/` directory for Colab upload. Contains `chips/` as a top-level folder. Omitted if `--no-zip` is set.
 - `offsets/` — One CSV per tile (`{tile_stem}_offsets.csv`) mapping each chip filename to its pixel offset (`x_offset`, `y_offset`) within the source tile.
 - `geotransforms.json` — Affine transform coefficients per tile, stored with labeled keys (`a`, `b`, `c`, `d`, `e`, `f`).
 
+**Error handling:**
+If a tile fails to chip or its offset CSV fails to write (permissions, disk full), the error is logged to stderr and the pipeline continues to the next tile. Partial chip output from failed tiles is not cleaned up — it will be overwritten on re-run.
+
 ### Stage 2 — Inference (Google Colab)
 
-1. Upload the Stage 1 output directory to Google Drive (or directly to the Colab runtime).
+1. Upload `chips.zip` from the Stage 1 output directory to the Colab runtime.
 2. Upload `inference_colab.py` and your trained `.pt` weights.
-3. Edit the `COLAB_CONFIG` block at the top of the script:
+3. Unzip chips and install dependencies:
+
+```python
+!pip install ultralytics -q
+!unzip -q /content/chips.zip -d /content/
+```
+
+4. Set `COLAB_MODE = True` in the configuration cell:
 
 ```python
 COLAB_MODE = True
 COLAB_CONFIG = {
-    "input_dir": "/content/drive/MyDrive/chips/inference_2022/staten_island_2022",
-    "model_path": "/content/drive/MyDrive/models/yolo26n_buspad.pt",
+    "input_dir": "/content",
+    "model_path": "/content/models/best.pt",
     "batch_size": 64,
     "conf": 0.25,
-    "output_dir": None,  # Defaults to input_dir/predictions/
+    "output_dir": None,  # Defaults to /content/predictions/
 }
 ```
 
-4. Run all cells.
+5. Run all cells. On completion, `predictions.zip` is automatically downloaded via the browser. The zip contains a `predictions/` top-level folder.
 
 Alternatively, run as a CLI script on any machine with a GPU:
 
@@ -120,6 +133,8 @@ python inference_colab.py /path/to/stage1_output /path/to/model.pt \
     --batch-size 64 \
     --conf 0.25
 ```
+
+In CLI mode, predictions are written to `input_dir/predictions/` (or `--output-dir`) without zipping.
 
 **Arguments (CLI mode):**
 
@@ -133,8 +148,17 @@ python inference_colab.py /path/to/stage1_output /path/to/model.pt \
 
 **Outputs:**
 - `predictions/` — One CSV per tile (`{tile_stem}_predictions.csv`). Each row: `chip_filename`, `x1`, `y1`, `x2`, `y2` (in 640×640 space), `confidence`, `class_id`. Tiles with no detections produce no CSV.
+- `predictions.zip` — (Colab mode only) Zipped `predictions/` directory, auto-downloaded via browser.
 
 ### Stage 3 — Georeferencing (Local)
+
+Unzip `predictions.zip` into the Stage 1 output directory so that `predictions/` sits alongside `offsets/` and `geotransforms.json`:
+
+```bash
+unzip -q predictions.zip -d output/chips/inference_2022/staten_island_2022/
+```
+
+Then run georeferencing:
 
 ```bash
 buspad-georef output/chips/inference_2022/staten_island_2022
@@ -163,13 +187,13 @@ Detection centroid (640×640 space)
 ## End-to-End Example
 
 ```bash
-# Stage 1: chip tiles
+# Stage 1: chip tiles (produces chips/, offsets/, geotransforms.json, chips.zip)
 buspad-inference-chip data/nyc_ortho_2022/boro_staten_island_sp22 --overlap 20
 
-# Stage 2: upload to Colab, run inference, download predictions/ directory
-# Place predictions/ inside the Stage 1 output directory.
+# Stage 2: upload chips.zip to Colab, run inference, download predictions.zip
 
-# Stage 3: georeference
+# Stage 3: unzip predictions into Stage 1 output, then georeference
+unzip -q predictions.zip -d output/chips/inference_2022/staten_island_2022/
 buspad-georef output/chips/inference_2022/staten_island_2022
 ```
 
@@ -183,3 +207,5 @@ Final output: `output/chips/inference_2022/staten_island_2022/detections.shp`
 - **Affine storage:** Coefficients are stored with explicit labels (`a`–`f`) in JSON to avoid GDAL/Affine ordering ambiguity. Stage 3 reconstructs the `Affine` object directly.
 - **Duplicate detections:** Overlapping chips will produce duplicate detections for the same bus pad. No deduplication is applied in this pipeline. Post-process in GIS (e.g., spatial clustering or distance-based merging) as needed.
 - **Scale:** Designed for ~300 tiles per collection. Stage 1 processes tiles sequentially. At 961 chips/tile, expect ~288,000 chips per run.
+- **Error handling (Stage 1):** Individual tile failures (disk full, permissions) are logged and skipped. The rest of the run completes. Partial output from failed tiles is not cleaned up and will be overwritten on re-run.
+- **Colab transfer:** Chip images are transferred to Colab via `chips.zip` (manual upload). Predictions are returned via `predictions.zip` (auto-downloaded). Both zips preserve their containing directory (`chips/`, `predictions/`) so unzipping places files in the expected locations without path adjustment.
