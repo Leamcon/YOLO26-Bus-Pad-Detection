@@ -25,6 +25,16 @@ TILE_SIZE = 5000
 TRAVERSAL = TILE_SIZE - CHIP_SIZE  # 4800
 
 
+def find_project_root() -> Path:
+    current = Path(__file__).resolve().parent
+    for parent in [current, *current.parents]:
+        if (parent / ".project-root").exists():
+            return parent
+    raise FileNotFoundError("Could not locate project root. Is .project-root present?")
+
+
+PROJECT_ROOT = find_project_root()
+
 def parse_input_path(input_path: str) -> dict | None:
     """Extract year and boro from the input directory convention.
 
@@ -69,8 +79,7 @@ def build_output_dir(input_path: str, output_override: str | None) -> Path:
         )
         sys.exit(1)
 
-    return Path("output/chips") / f"inference_{parsed['year']}" / f"{parsed['boro']}_{parsed['year']}"
-
+    return PROJECT_ROOT / "output" / "chips" / f"inference_{parsed['year']}" / f"{parsed['boro']}_{parsed['year']}"
 
 def validate_overlap(overlap_pct: int) -> int:
     """Validate overlap percentage and return stride in pixels."""
