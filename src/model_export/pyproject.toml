@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "model-export"
+version = "0.1.0"
+description = "CLI for exporting fine-tuned YOLO models to deployment formats."
+requires-python = ">=3.10"
+dependencies = [
+    "ultralytics",
+]
