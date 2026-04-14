@@ -25,7 +25,7 @@ def run_inference_for_tile(
         batch_strs = [str(p) for p in batch]
 
         results = model.predict(
-            batch_strs, conf=conf, device=device, verbose=False,
+            batch_strs, conf=conf, device=device, verbose=False, half=True,
         )
 
         for chip_path, result in zip(batch, results):
