@@ -37,11 +37,8 @@ env/
 *.safetensors
 checkpoints/
 models/
-runs/
-mlruns/
-wandb/
-lightning_logs/
-outputs/
+
+
 
 # TensorBoard logs
 *.tfevents*
@@ -119,6 +116,6 @@ desktop.ini
 # ============================================
 # Specific
 # ============================================
-
+archive/
 subset_pytest/
 scratch.md
