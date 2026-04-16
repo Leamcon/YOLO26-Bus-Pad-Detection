@@ -1,17 +1,13 @@
-[build-system]
-requires = ["setuptools>=68.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
-
 [project]
-name = "buspad-georef"
+name = "buspad_georef"
 version = "0.1.0"
-description = "Georeference YOLO bus pad detections to EPSG:6539 shapefile."
+description = "Georeference YOLO bus-pad detections to EPSG:6539 map coordinates."
 requires-python = ">=3.10"
 dependencies = [
-    "geopandas>=0.14",
-    "shapely>=2.0",
-    "affine>=2.4",
+    "affine",
+    "geopandas",
+    "shapely",
 ]
 
 [project.scripts]
-buspad-georef = "buspad_georef.georeference:main"
+buspad-georef = "buspad_georef.cli:main"

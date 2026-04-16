@@ -1,108 +1,58 @@
-# buspad-georef
+# buspad_georef
 
-Georeferences YOLO bus pad detections from chip-pixel space to EPSG:6539 map coordinates and writes a point shapefile.
+**Stage 3** of the `dot_buspads_ml` pipeline.  Converts YOLO detection
+bounding-box predictions from chip-pixel space back to EPSG:6539 (NAD83)
+map coordinates and writes the results as a spatial feature class.
 
-## Pipeline Context
+## Prerequisites
 
-This package handles Stage 3 of a three-stage detection pipeline:
+Upstream stages must have already produced:
 
-| Stage | Component | Environment | Description |
-|-------|-----------|-------------|-------------|
-| 1 — Chipping | `buspad-inference-chip` | Local | Chip, upscale, and export offset/geotransform metadata |
-| 2 — Inference | `inference_colab.py` | Google Colab (T4) | Batched YOLO26n inference on chips |
-| **3 — Georeferencing** | **`buspad-georef`** | **Local** | **Map predictions to EPSG:6539 shapefile** |
-
-## Dependencies
-
-```
-python >= 3.10
-geopandas >= 0.14
-shapely >= 2.0
-affine >= 2.4
-```
-
-## Installation
-
-```bash
-pip install -e src/buspad_georef
-```
-
-## Inputs
-
-This stage consumes outputs from both Stage 1 and Stage 2. The expected directory structure:
-
-```
-inference_2022/staten_island_2022/
-├── chips/              # Not used by this stage
-├── offsets/            # From Stage 1 (required)
-│   ├── tile_001_offsets.csv
-│   └── ...
-├── geotransforms.json  # From Stage 1 (required)
-└── predictions/        # From Stage 2 (required)
-    ├── tile_001_predictions.csv
-    └── ...
-```
+| Artifact | Source | Description |
+|---|---|---|
+| `offsets/*.csv` | Stage 1 | Per-tile CSVs mapping each chip filename to its (x, y) pixel offset within the parent tile. |
+| `geotransforms.json` | Stage 1 | Affine transform coefficients keyed by original tile filename. |
+| `predictions/*.csv` | Stage 2 | Per-tile YOLO prediction CSVs with columns: `chip_filename`, `x1`, `y1`, `x2`, `y2`, `confidence`, `class_id`. |
 
 ## Usage
 
+From `dot_buspads_ml/src/`:
+
 ```bash
-# Via installed console script
-buspad-georef output/chips/inference_2022/staten_island_2022
+# Defaults: reads predictions from stage1_dir/predictions/,
+#           writes shapefile to stage1_dir/detections/
+python -m buspad_georef /path/to/stage1_output
 
-# Via python -m
-python -m buspad_georef output/chips/inference_2022/staten_island_2022
+# Explicit predictions directory and GeoPackage output
+python -m buspad_georef /path/to/stage1_output /path/to/preds \
+     --output /path/to/output_dir --format gpkg
 ```
 
-### Arguments
-
-| Argument | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `stage1_dir` | Yes | — | Stage 1 output directory (must contain `offsets/` and `geotransforms.json`). |
-| `predictions_dir` | No | `stage1_dir/predictions/` | Directory of Stage 2 prediction CSVs. |
-| `--output` | No | `stage1_dir/detections.shp` | Output shapefile path. |
-
-## Coordinate Transform Chain
-
-Each detection undergoes four steps to go from model output to map coordinates:
+## Coordinate Pipeline
 
 ```
-1. Bbox centroid in 640×640 space
-   cx = (x1 + x2) / 2,  cy = (y1 + y2) / 2
-
-2. Scale to 200×200 chip space
-   cx_chip = cx × (200/640),  cy_chip = cy × (200/640)
-
-3. Tile pixel coordinates
-   tile_col = x_offset + cx_chip,  tile_row = y_offset + cy_chip
-
-4. Affine transform → EPSG:6539
-   map_x, map_y = transform * (tile_col, tile_row)
+640x640 YOLO space
+   -> scale by (CHIP_SIZE / UPSCALE_SIZE) -> 200x200 chip space
+     -> translate by chip offset           -> tile pixel space
+       -> affine transform                 -> EPSG:6539 map space
 ```
 
-The Affine object is reconstructed from labeled coefficients (`a`–`f`) stored in `geotransforms.json`, using `Affine(a, b, c, d, e, f)` and the `transform * (col, row)` interface directly. This avoids GDAL/Affine coefficient ordering ambiguity.
-
-## Output
+## Package Structure
 
 ```
-inference_2022/staten_island_2022/
-└── detections.shp      # + .shx, .dbf, .prj sidecars
+buspad_georef/
+├── __init__.py      Public API surface
+├── __main__.py      python -m entry point
+├── cli.py           Argument parsing, orchestration
+├── defs.py          Constants and data structures
+├── loaders.py       File I/O (geotransforms, offsets)
+├── processing.py    Coordinate math, prediction iteration
+└── writers.py       Shapefile / GeoPackage output
 ```
 
-Point shapefile in EPSG:6539 with one feature per detection. Attributes:
+## Output Formats
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `confidence` | float | Model confidence score |
-| `class_id` | int | Predicted class ID |
-| `source_tile` | str | Original JP2 tile filename |
-
-## Technical Notes
-
-- Tiles with no prediction CSV (zero detections in Stage 2) are silently skipped.
-- Chips referenced in predictions but missing from the offset CSV trigger a warning and are skipped.
-- Duplicate detections from overlapping chips are not deduplicated. The same bus pad detected in adjacent chips will produce multiple points. Post-process in GIS (spatial clustering or distance-based merging) as needed.
-- The `affine` package is a transitive dependency of `rasterio` but is listed explicitly here since `rasterio` is not a direct dependency of this package.
-
-## Upstream
-
-Ensure the Stage 2 `predictions/` directory has been downloaded from Colab and placed inside the Stage 1 output directory before running this stage.
+| Flag | Format | Notes |
+|---|---|---|
+| `--format shp` | ESRI Shapefile (default) | Bundled in a containing directory. Field names truncated to 10 chars. |
+| `--format gpkg` | GeoPackage | Single file, no field name limits. |
