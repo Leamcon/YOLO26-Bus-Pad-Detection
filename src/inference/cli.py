@@ -4,6 +4,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from inference.formats import is_valid_model_path
+
 EXPECTED_CHIPS_DIRNAME = "chips"
 
 
@@ -15,7 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "model_path",
         type=Path,
-        help="Path to trained YOLO .pt weights.",
+        help="Path to model file or directory (.pt, .onnx, .mlpackage, .mlmodel, or OpenVINO dir).",
     )
     parser.add_argument(
         "chips_dir",
@@ -26,7 +28,7 @@ def parse_args() -> argparse.Namespace:
         "--device",
         type=str,
         default=None,
-        help="Inference device: mps | cuda | cpu (default: auto-detect).",
+        help="Inference device: mps | cuda | cpu (default: auto per format).",
     )
     parser.add_argument(
         "--batch-size",
@@ -46,8 +48,12 @@ def parse_args() -> argparse.Namespace:
     args.model_path = args.model_path.resolve()
     args.chips_dir = args.chips_dir.resolve()
 
-    if not args.model_path.is_file():
-        parser.error(f"Model file not found: {args.model_path}")
+    if not is_valid_model_path(args.model_path):
+        parser.error(
+            f"Model path not found or unrecognised format: {args.model_path}\n"
+            f"  Supported: .pt, .onnx, .mlpackage, .mlmodel, or OpenVINO "
+            f"directory containing .xml + .bin"
+        )
     if not args.chips_dir.is_dir():
         parser.error(f"Chips directory not found: {args.chips_dir}")
 

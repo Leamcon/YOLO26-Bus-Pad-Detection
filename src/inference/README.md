@@ -15,19 +15,29 @@ inference/
 ├── README.md
 ├── __main__.py     Entry point
 ├── cli.py          Argument parsing & input validation
+├── formats.py      Format detection, device compat, runtime checks
+├── device.py       Device resolution & validation
 ├── chips.py        Chip file discovery & tile grouping
-├── device.py       Inference device detection
 ├── predict.py      YOLO model loading & batched inference
 └── io.py           Prediction output writers
 ```
 
 ## Dependencies
 
-Requires Python ≥ 3.10. Core dependencies are declared in
-`pyproject.toml`:
+Requires Python ≥ 3.10. Core dependencies:
 
 - `ultralytics` 8.4.x (YOLO26)
 - `torch`
+
+Per-format runtime dependencies (install only what you need):
+
+| Format   | Package         |
+|----------|-----------------|
+| CoreML   | `coremltools`   |
+| ONNX     | `onnxruntime`   |
+| OpenVINO | `openvino`      |
+
+Native `.pt` weights require only `torch` (already a core dependency).
 
 ## Usage
 
@@ -35,28 +45,51 @@ Run from the project `src/` directory:
 
 ```bash
 cd dot_buspads_ml/src
-python -m inference path/to/best.pt path/to/chips --device mps
+python -m inference path/to/best.onnx path/to/chips
 ```
 
-The `chips_dir` argument must point to a directory named `chips/`.
-Predictions are written to a sibling `predictions/` directory so that
-downstream stages can locate geotransform and offset sidecar data in the
-shared parent.
+Model format is auto-detected from the path. Device compatibility is
+validated against the detected format and auto-selected if not specified.
+
+**Supported model formats**
+
+| Format   | Extensions / layout              | Valid devices     |
+|----------|----------------------------------|-------------------|
+| PyTorch  | `.pt`                            | cpu, cuda, mps    |
+| ONNX     | `.onnx`                          | cpu, cuda         |
+| CoreML   | `.mlpackage` dir, `.mlmodel`     | cpu, mps          |
+| OpenVINO | `.xml` file, or dir with `.xml` + `.bin` | cpu       |
 
 **Arguments**
 
 | Argument     | Description                              |
 |--------------|------------------------------------------|
-| `model_path` | Path to trained YOLO `.pt` weights.      |
+| `model_path` | Path to model file or directory.         |
 | `chips_dir`  | Path to directory containing chip images.|
 
 **Options**
 
-| Option         | Default      | Description                        |
-|----------------|--------------|------------------------------------|
-| `--device`     | auto-detect  | `mps` \| `cuda` \| `cpu`          |
-| `--batch-size` | `64`         | Inference batch size.              |
-| `--conf`       | `0.25`       | Confidence threshold.              |
+| Option         | Default             | Description                        |
+|----------------|---------------------|------------------------------------|
+| `--device`     | auto per format     | `mps` \| `cuda` \| `cpu`          |
+| `--batch-size` | `64`                | Inference batch size.              |
+| `--conf`       | `0.25`              | Confidence threshold.              |
+
+**Examples**
+
+```bash
+# ONNX on CPU (auto-detected)
+python -m inference models/best.onnx data/tile_01/chips
+
+# CoreML on MPS
+python -m inference models/best.mlpackage data/tile_01/chips --device mps
+
+# OpenVINO (CPU only)
+python -m inference models/best_openvino_model data/tile_01/chips
+
+# Native .pt on CUDA
+python -m inference models/best.pt data/tile_01/chips --device cuda
+```
 
 ## Expected directory layout
 

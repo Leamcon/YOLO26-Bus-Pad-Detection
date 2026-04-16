@@ -5,35 +5,45 @@ Run batched inference on chipped imagery, output per-tile prediction CSVs.
 Predictions are written to a `predictions/` directory alongside the input
 chips directory.
 
+Supports exported model formats (CoreML, ONNX, OpenVINO) in addition to
+native .pt weights.  Model format is auto-detected from the path; device
+compatibility is validated against the detected format.
+
 Usage:
     cd dot_buspads_ml/src
-    python -m inference path/to/best.pt path/to/chips --device mps
+    python -m inference path/to/best.onnx path/to/chips
+    python -m inference path/to/best.mlpackage path/to/chips --device mps
+    python -m inference path/to/best_openvino_model path/to/chips
 
 Arguments:
-    model_path      Path to trained YOLO .pt weights.
+    model_path      Path to model file or directory.
     chips_dir       Path to directory containing chip images.
 
 Options:
-    --device        Inference device: mps | cuda | cpu (default: auto-detect).
+    --device        Inference device: mps | cuda | cpu (default: auto per format).
     --batch-size    Inference batch size (default: 64).
     --conf          Confidence threshold (default: 0.25).
 """
 
 from inference.cli import parse_args
 from inference.chips import group_chips_by_tile
-from inference.device import detect_device
+from inference.device import resolve_device
+from inference.formats import detect_format, check_runtime
 from inference.io import write_prediction_csv
 from inference.predict import load_model, run_inference_for_tile
 
 
 def main():
     args = parse_args()
-    device = detect_device(args.device)
+    fmt = detect_format(args.model_path)
+    check_runtime(fmt)
+    device = resolve_device(args.device, fmt)
 
     output_dir = args.chips_dir.parent / "predictions"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Model:       {args.model_path}")
+    print(f"Format:      {fmt.value}")
     print(f"Chips:       {args.chips_dir}")
     print(f"Output:      {output_dir}")
     print(f"Device:      {device}")
