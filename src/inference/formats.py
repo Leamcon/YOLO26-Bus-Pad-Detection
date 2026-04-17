@@ -28,6 +28,31 @@ FORMAT_RUNTIME: dict[ModelFormat, str] = {
     ModelFormat.OPENVINO: "openvino",
 }
 
+# Maximum batch size supported per format.  Ultralytics' non-PyTorch
+# backends do not reliably handle multi-image batches.
+FORMAT_MAX_BATCH: dict[ModelFormat, int | None] = {
+    ModelFormat.PT: None,           # no limit
+    ModelFormat.ONNX: 1,
+    ModelFormat.COREML: 1,
+    ModelFormat.OPENVINO: 1,
+}
+
+
+def clamp_batch_size(requested: int, fmt: ModelFormat) -> int:
+    """Return the effective batch size, clamped to the format's maximum.
+
+    Prints a warning if the requested size is reduced.
+    """
+    cap = FORMAT_MAX_BATCH[fmt]
+    if cap is not None and requested > cap:
+        print(
+            f"WARNING: batch size {requested} not supported for "
+            f"'{fmt.value}' backend, clamping to {cap}.",
+            file=sys.stderr,
+        )
+        return cap
+    return requested
+
 
 def is_valid_model_path(model_path: Path) -> bool:
     """Check whether the path exists and matches a known format."""

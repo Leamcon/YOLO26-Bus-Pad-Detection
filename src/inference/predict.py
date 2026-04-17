@@ -6,8 +6,14 @@ from ultralytics import YOLO
 
 
 def load_model(model_path: Path) -> YOLO:
-    """Load a YOLO model from weights."""
-    return YOLO(str(model_path))
+    """Load a YOLO model from any supported format.
+
+    Ultralytics handles dispatch to the appropriate runtime backend
+    based on the file extension / directory structure.  Exported formats
+    (CoreML, ONNX, OpenVINO) do not embed task metadata, so we
+    explicitly set task='detect'.
+    """
+    return YOLO(str(model_path), task="detect")
 
 
 def run_inference_for_tile(
@@ -25,7 +31,7 @@ def run_inference_for_tile(
         batch_strs = [str(p) for p in batch]
 
         results = model.predict(
-            batch_strs, conf=conf, device=device, verbose=False, half=True,
+            batch_strs, conf=conf, device=device, verbose=False,
         )
 
         for chip_path, result in zip(batch, results):

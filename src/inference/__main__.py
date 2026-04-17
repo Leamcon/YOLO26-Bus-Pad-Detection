@@ -28,7 +28,7 @@ Options:
 from inference.cli import parse_args
 from inference.chips import group_chips_by_tile
 from inference.device import resolve_device
-from inference.formats import detect_format, check_runtime
+from inference.formats import detect_format, check_runtime, clamp_batch_size
 from inference.io import write_prediction_csv
 from inference.predict import load_model, run_inference_for_tile
 
@@ -38,6 +38,7 @@ def main():
     fmt = detect_format(args.model_path)
     check_runtime(fmt)
     device = resolve_device(args.device, fmt)
+    batch_size = clamp_batch_size(args.batch_size, fmt)
 
     output_dir = args.chips_dir.parent / "predictions"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -47,7 +48,7 @@ def main():
     print(f"Chips:       {args.chips_dir}")
     print(f"Output:      {output_dir}")
     print(f"Device:      {device}")
-    print(f"Batch size:  {args.batch_size}")
+    print(f"Batch size:  {batch_size}")
     print(f"Confidence:  {args.conf}\n")
 
     model = load_model(args.model_path)
@@ -66,7 +67,7 @@ def main():
         )
 
         records = run_inference_for_tile(
-            model, chip_paths, args.batch_size, args.conf, device,
+            model, chip_paths, batch_size, args.conf, device,
         )
         total_detections += len(records)
 
