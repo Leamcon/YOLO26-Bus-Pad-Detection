@@ -1,27 +1,28 @@
 # tile_selector
 
-Extracts JP2 orthoimagery tiles that intersect a given NYC community district. Part of the bus pad detection pipeline.
+Extracts JP2 orthoimagery tiles that intersect a given NYC community district for a specified imagery year. Part of the bus pad detection pipeline.
 
 ## Purpose
 
-Given one or more community district (CD) numbers, this module:
+Given one or more community district (CD) numbers and imagery year(s), this module:
 
 1. Loads the NYC community district boundary shapefile.
-2. Resolves the correct borough mosaic tile index from the CD number.
-3. Performs a spatial intersection to identify mosaic tiles overlapping the district.
-4. Copies matched JP2 tile images to `output/cd/{boro_cd}/`.
+2. Validates that the requested ortho imagery year directory exists on disk.
+3. Resolves the correct borough mosaic tile index from the CD number and year.
+4. Performs a spatial intersection to identify mosaic tiles overlapping the district.
+5. Copies matched JP2 tile images to `output/cd/{year}/{boro_cd}/`.
 
 ## Usage
 
 ```bash
-# Single district
-python -m src.tile_selector --cd 101
+# Single district, single year
+python -m src.tile_selector --cd 101 --year 2024
 
-# Batch (cross-borough supported)
-python -m src.tile_selector --cd 101 102 501
+# Batch: multiple districts and years (cross-borough supported)
+python -m src.tile_selector --cd 101 102 501 --year 2022 2024
 
 # Preview matched tiles without copying
-python -m src.tile_selector --cd 101 --dry-run
+python -m src.tile_selector --cd 101 --year 2024 --dry-run
 ```
 
 ## CD Numbering
@@ -38,24 +39,38 @@ NYC community districts use a three-digit code where the leading digit identifie
 
 Example: `301` = Brooklyn CD 1, `412` = Queens CD 12.
 
+## Imagery Years
+
+Ortho imagery is expected at `data/nyc_ortho_{YYYY}/` with borough subdirectories following the `boro_{name}_sp{YY}` convention. The mosaic shapefile naming varies by vintage:
+
+- **2024:** `{YY}_b_{boro_name}_l06_4bd.shp` (unique per borough)
+- **All other years:** `nyc_sp_4bd_06in_index{YY}.shp` (same filename per borough directory)
+
+Year-specific overrides are defined in `config.toml` under `[paths.patterns.mosaic_shapefile]`. Add new entries as naming conventions change.
+
 ## Configuration
 
-All paths, field names, and borough mappings are defined in `config.toml`. Edit this file if data locations or naming conventions change. No code modifications should be necessary for path changes.
+All paths, field names, patterns, and borough mappings are defined in `config.toml`. Edit this file if data locations or naming conventions change. No code modifications should be necessary for path or pattern changes.
 
 ## Output
 
 ```
 output/cd/
-├── 101/
-│   ├── 000123.jp2
-│   ├── 000456.jp2
-│   └── ...
-├── 501/
-│   ├── 002789.jp2
-│   └── ...
+├── 2022/
+│   ├── 101/
+│   │   ├── 000123.jp2
+│   │   └── ...
+│   └── 301/
+│       └── ...
+├── 2024/
+│   ├── 101/
+│   │   ├── 000456.jp2
+│   │   └── ...
+│   └── 501/
+│       └── ...
 ```
 
-Each CD directory contains all mosaic tiles whose footprint intersects the district boundary. In batch mode, a tile shared by adjacent districts is copied into both.
+Each CD directory contains all mosaic tiles whose footprint intersects the district boundary. In batch mode, a tile shared by adjacent districts is copied into both. Multi-year runs produce separate year directories.
 
 ## Dependencies
 
@@ -77,4 +92,5 @@ Each CD directory contains all mosaic tiles whose footprint intersects the distr
 
 - All spatial operations are performed in EPSG:2263 (NY State Plane Long Island, ft). Shapefiles in other CRS are reprojected automatically.
 - The mosaic `Image` field values are zero-padded to 6 digits when numeric to match JP2 filenames on disk.
-- Single-CD invocation fails hard on errors. Batch mode logs warnings and continues.
+- Ortho year directories are validated before any spatial work begins. Missing directories produce an error and are skipped in batch mode.
+- Single-CD, single-year invocation fails hard on errors. Batch mode logs warnings and continues.
