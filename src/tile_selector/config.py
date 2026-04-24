@@ -91,6 +91,8 @@ def load_config(config_path: Path = _CONFIG_PATH) -> Config:
     with open(config_path, "rb") as f:
         raw = tomllib.load(f)
 
+    project_root = _find_project_root()
+
     borough_mapping = {
         int(k): v for k, v in raw["boroughs"]["mapping"].items()
     }
@@ -102,11 +104,10 @@ def load_config(config_path: Path = _CONFIG_PATH) -> Config:
     }
 
     return Config(
-        boundary_shapefile=Path(raw["paths"]["boundary_shapefile"]),
-        ortho_base_dir=Path(raw["paths"]["ortho_base_dir"]),
+        boundary_shapefile=project_root / raw["paths"]["boundary_shapefile"],
+        ortho_base_dir=project_root / raw["paths"]["ortho_base_dir"],
         ortho_dir_pattern=raw["paths"]["patterns"]["ortho_dir"],
-
-        output_base_dir=Path(raw["paths"]["output_base_dir"]),
+        output_base_dir=project_root / raw["paths"]["output_base_dir"],
         boro_dir_pattern=raw["paths"]["patterns"]["boro_dir"],
         mosaic_shapefile_default=mosaic_default,
         mosaic_shapefile_overrides=mosaic_overrides,
