@@ -7,6 +7,19 @@ import tomllib
 
 
 _CONFIG_PATH = Path(__file__).parent / "config.toml"
+_ROOT_ANCHOR = ".project-root"
+
+
+def _find_project_root() -> Path:
+    """Walk up from this file's directory to find the .project-root anchor."""
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / _ROOT_ANCHOR).exists():
+            return current
+        current = current.parent
+    raise FileNotFoundError(
+        f"Project root anchor '{_ROOT_ANCHOR}' not found in any parent directory."
+    )
 
 
 @dataclass(frozen=True)
