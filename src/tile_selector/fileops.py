@@ -17,6 +17,9 @@ def image_value_to_filename(image_value: str, cfg: Config) -> str:
     """
     value = image_value.strip()
 
+    if value.endswith(cfg.image_extension):
+        return value
+
     if value.isdigit():
         value = value.zfill(6)
 
