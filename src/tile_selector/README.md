@@ -93,4 +93,4 @@ Each CD directory contains all mosaic tiles whose footprint intersects the distr
 - All spatial operations are performed in EPSG:2263 (NY State Plane Long Island, ft). Shapefiles in other CRS are reprojected automatically.
 - The mosaic `Image` field values are zero-padded to 6 digits when numeric to match JP2 filenames on disk.
 - Ortho year directories are validated before any spatial work begins. Missing directories produce an error and are skipped in batch mode.
-- Single-CD, single-year invocation fails hard on errors. Batch mode logs warnings and continues.
+- Single-CD, single-year invocation fails hard on errors. Batch mode logs warnings and continues. 
