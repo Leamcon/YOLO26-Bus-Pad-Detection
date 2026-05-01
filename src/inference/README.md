@@ -60,20 +60,26 @@ validated against the detected format and auto-selected if not specified.
 | CoreML   | `.mlpackage` dir, `.mlmodel`     | cpu, mps          |
 | OpenVINO | `.xml` file, or dir with `.xml` + `.bin` | cpu       |
 
-**Arguments**
+### Positional arguments
 
 | Argument     | Description                              |
 |--------------|------------------------------------------|
-| `model_path` | Path to model file or directory.         |
-| `chips_dir`  | Path to directory containing chip images.|
+| `model_path` | Path to a YOLO model file or directory. Format is inferred from the file extension or directory contents. See the supported formats table above. |
+| `chips_dir`  | Path to the directory containing chip images (`.jpg`, `.jpeg`, `.png`). Must be named `chips`; the module will exit with an error otherwise, because Stage 3 expects `predictions/` to be a sibling of `chips/` under a common parent that also contains geotransform and offset sidecar files. |
 
-**Options**
+### Options
 
 | Option         | Default             | Description                        |
 |----------------|---------------------|------------------------------------|
-| `--device`     | auto per format     | `mps` \| `cuda` \| `cpu`          |
-| `--batch-size` | `64`                | Inference batch size.              |
-| `--conf`       | `0.25`              | Confidence threshold.              |
+| `--device`     | auto per format     | Inference device: `mps`, `cuda`, or `cpu`. When omitted, the best available device is auto-detected from the format's compatible set (see table above). Requesting a device that is incompatible with the model format will produce an error. |
+| `--batch-size` | `64`                | Number of chip images per inference call. For exported (non-PyTorch) formats — ONNX, CoreML, OpenVINO — batch size is clamped to `1` regardless of this value, as the Ultralytics backend does not reliably support multi-image batches for those formats. |
+| `--conf`       | `0.5`               | Minimum detection confidence threshold, range `0.0`–`1.0`. Detections below this score are discarded. The YOLO toolkit default is `0.25`; this module defaults to `0.5` to reduce false positives in aerial bus pad imagery. |
+
+### Output
+
+On completion the module prints a summary including total detections
+across all tiles and wall-clock elapsed time for the inference run
+(excluding model load).
 
 **Examples**
 
@@ -87,8 +93,8 @@ python -m inference models/best.mlpackage data/tile_01/chips --device mps
 # OpenVINO (CPU only)
 python -m inference models/best_openvino_model data/tile_01/chips
 
-# Native .pt on CUDA
-python -m inference models/best.pt data/tile_01/chips --device cuda
+# Native .pt on CUDA with lowered confidence threshold
+python -m inference models/best.pt data/tile_01/chips --device cuda --conf 0.3
 ```
 
 ## Expected directory layout

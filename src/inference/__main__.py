@@ -22,9 +22,10 @@ Arguments:
 Options:
     --device        Inference device: mps | cuda | cpu (default: auto per format).
     --batch-size    Inference batch size (default: 64).
-    --conf          Confidence threshold (default: 0.25).
+    --conf          Confidence threshold (default: 0.5).
 """
 
+import time
 from inference.cli import parse_args
 from inference.chips import group_chips_by_tile
 from inference.device import resolve_device
@@ -52,6 +53,7 @@ def main():
     print(f"Confidence:  {args.conf}\n")
 
     model = load_model(args.model_path)
+    t0 = time.perf_counter()
 
     tile_groups = group_chips_by_tile(args.chips_dir)
     total_chips = sum(len(v) for v in tile_groups.values())
@@ -77,8 +79,12 @@ def main():
         else:
             print("0 detections")
 
+    elapsed = time.perf_counter() - t0
+    minutes, seconds = divmod(elapsed, 60)
+
     print(f"\nDone. {total_detections} total detections across {len(tile_groups)} tiles.")
     print(f"Predictions written to {output_dir}")
+    print(f"Elapsed time: {int(minutes)}m {seconds:.1f}s")
 
 
 if __name__ == "__main__":

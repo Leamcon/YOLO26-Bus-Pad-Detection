@@ -39,8 +39,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--conf",
         type=float,
-        default=0.25,
-        help="Confidence threshold (default: 0.25).",
+        default=0.5,
+        help="Confidence threshold (default: 0.5).",
     )
 
     args = parser.parse_args()
