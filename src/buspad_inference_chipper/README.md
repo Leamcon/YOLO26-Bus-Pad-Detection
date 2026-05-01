@@ -1,6 +1,6 @@
 # buspad-inference-chipper
 
-Chips georeferenced JP2 tiles into 640×640 images for YOLO26n bus pad detection inference.
+Chips georeferenced JP2 tiles into 640×640 images for YOLO26 bus pad detection inference.
 
 ## Pipeline Context
 
