@@ -94,8 +94,8 @@ def _chip_cd(
         "failed": 0,
     }
 
-    shp_path, dbf_path = resolve_cd_files(cd)
-    has_pad, no_pad = load_bus_stops(shp_path, dbf_path)
+    shp_path, dbf_path, prj_path = resolve_cd_files(cd)
+    has_pad, no_pad = load_bus_stops(shp_path, dbf_path, prj_path)
     stats["has_pad_total"] = len(has_pad)
     stats["no_pad_total"] = len(no_pad)
 
