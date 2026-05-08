@@ -39,6 +39,8 @@ checkpoints/
 models/**
 
 # Allow final product models
+!models/final/
+!models/final/*/
 !models/final/*.pt
 !models/final/*.onnx
 !models/final/*.mlpackage
@@ -99,12 +101,14 @@ qgis/
 *.7z
 
 # Allow cd boundaries
-!data/boundaries/*.shp
-!data/boundaries/*.shx
-!data/boundaries/*.dbf
-!data/boundaries/*.prj
-!data/boundaries/*.cpg
-!data/boundaries/*.sr.lock
+!data/boundaries/
+!data/boundaries/*/
+!data/boundaries/**/*.shp
+!data/boundaries/**/*.shx
+!data/boundaries/**/*.dbf
+!data/boundaries/**/*.prj
+!data/boundaries/**/*.cpg
+!data/boundaries/**/*.sr.lock
 
 # ============================================
 # Config & Secrets
