@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "buspad"
+version = "1.0.0"
+description = "Bus pad detection from orthographic aerial imagery"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.4",
+    "ultralytics>=8.4.0,<8.5",
+    "rasterio>=1.3",
+    "numpy>=1.24",
+    "Pillow>=10.0",
+    "affine>=2.4",
+    "geopandas>=1.1.3",
+    "shapely>=2.1.2",
+]
+
+[project.optional-dependencies]
+coreml = ["coremltools==9"]
+onnx = ["onnxruntime"]
+openvino = ["openvino"]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[project.scripts]
+buspad-init = "buspad.init:main"
+buspad-select = "buspad.tile_selector.cli:main"
+buspad-chip = "buspad.chipper.cli:main"
+buspad-infer = "buspad.inference.cli:main"
+buspad-georef = "buspad.georef.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
