@@ -36,9 +36,14 @@ env/
 *.joblib
 *.safetensors
 checkpoints/
-models/
+models/**
 
-
+# Allow final product models
+!models/final/*.pt
+!models/final/*.onnx
+!models/final/*.mlpackage
+!models/final/*.xml
+!models/final/*.bin
 
 # TensorBoard logs
 *.tfevents*
@@ -78,7 +83,7 @@ models/
 # ============================================
 # Other Data & Output
 # ============================================
-data/
+data/**
 output/
 results/
 predictions/
@@ -92,6 +97,14 @@ qgis/
 *.zip
 *.tar.gz
 *.7z
+
+# Allow cd boundaries
+!data/boundaries/*.shp
+!data/boundaries/*.shx
+!data/boundaries/*.dbf
+!data/boundaries/*.prj
+!data/boundaries/*.cpg
+!data/boundaries/*.sr.lock
 
 # ============================================
 # Config & Secrets
