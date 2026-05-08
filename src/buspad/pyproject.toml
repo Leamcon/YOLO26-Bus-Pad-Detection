@@ -29,9 +29,9 @@ dev = [
 
 [project.scripts]
 buspad-init = "buspad.init:main"
-buspad-select = "buspad.tile_selector.cli:main"
-buspad-chip = "buspad.chipper.cli:main"
-buspad-infer = "buspad.inference.cli:main"
+buspad-select = "buspad.cd_select.cli:main"
+buspad-chip = "buspad.chip.cli:main"
+buspad-infer = "buspad.infer.cli:main"
 buspad-georef = "buspad.georef.cli:main"
 
 [tool.setuptools.packages.find]
