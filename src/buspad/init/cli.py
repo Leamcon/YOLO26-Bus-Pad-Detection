@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from importlib.resources import files
 from importlib.abc import Traversable
 from pathlib import Path
 
-
-_CONFIG_DIR = Path.home() / ".buspad"
-_CONFIG_FILE = _CONFIG_DIR / "config.toml"
+from buspad.config import CONFIG_DIR, CONFIG_FILE
 
 # Directories created under the workspace root.
 _WORKSPACE_DIRS: list[tuple[str, ...]] = [
@@ -105,15 +102,15 @@ def copy_resources(workspace: Path) -> None:
 def write_config(workspace: Path) -> None:
     """Write workspace path to ~/.buspad/config.toml."""
     print("Writing config...")
-    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     # TOML literal string (single-quoted) preserves Windows backslashes.
     content = (
         "# buspad workspace configuration\n"
         "[buspad]\n"
         f"workspace = '{workspace}'\n"
     )
-    _CONFIG_FILE.write_text(content, encoding="utf-8")
-    print(f"  {_CONFIG_FILE}")
+    CONFIG_FILE.write_text(content, encoding="utf-8")
+    print(f"  {CONFIG_FILE}")
 
 
 # ------------------------------------------------------------------
