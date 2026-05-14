@@ -1,4 +1,5 @@
-# Package marker for scripts directory.
-# Add to as needed
+"""buspad — bus pad detection from orthographic aerial imagery."""
 
-"""tile_selector: Extract orthoimagery tiles intersecting NYC community districts. See README.md."""
+from importlib.metadata import version
+
+__version__ = version("buspad")
