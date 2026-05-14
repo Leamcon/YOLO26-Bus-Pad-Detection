@@ -4,39 +4,38 @@ import logging
 import shutil
 from pathlib import Path
 
-from .config import Config
+from . import defs
 
 logger = logging.getLogger(__name__)
 
 
-def image_value_to_filename(image_value: str, cfg: Config) -> str:
+def image_value_to_filename(image_value: str) -> str:
     """Convert a mosaic Image field value to a zero-padded jp2 filename.
 
-    The Image field is already a string. We strip whitespace, zero-pad
-    to 6 characters if purely numeric, and append the file extension.
+    Strips whitespace, zero-pads to 6 characters if purely numeric,
+    and appends the file extension.
     """
     value = image_value.strip()
 
-    if value.endswith(cfg.image_extension):
+    if value.endswith(defs.IMAGE_EXTENSION):
         return value
 
     if value.isdigit():
         value = value.zfill(6)
 
-    return f"{value}{cfg.image_extension}"
+    return f"{value}{defs.IMAGE_EXTENSION}"
 
 
 def resolve_and_validate(
     image_values: list[str],
     image_dir: Path,
-    cfg: Config,
 ) -> tuple[list[Path], list[str]]:
     """Resolve Image values to file paths. Return (found, missing) lists."""
     found: list[Path] = []
     missing: list[str] = []
 
     for val in image_values:
-        filename = image_value_to_filename(val, cfg)
+        filename = image_value_to_filename(val)
         filepath = image_dir / filename
 
         if filepath.is_file():
