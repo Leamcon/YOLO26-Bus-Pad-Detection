@@ -1,3 +1,5 @@
-from buspad_inference_chipper.chip_tiles import main
+"""Allow ``python -m buspad.chip``."""
+
+from buspad.chip.cli import main
 
 main()

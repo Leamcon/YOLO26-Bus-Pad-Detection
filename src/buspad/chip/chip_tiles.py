@@ -1,105 +1,40 @@
-"""
-Stage 1 — Chipping Pipeline
-Chips JP2 tiles into 200x200 patches, upscales to 640x640, writes offset CSVs,
-a geotransform reference file, and a chips.zip for Colab upload.
+"""Core chipping logic — stateless functions that operate on single tiles."""
 
-Usage:
-    python chip_tiles.py data/nyc_ortho_2022/boro_staten_island_sp22 \
-        --overlap 20 --format jpg
-"""
-
-import argparse
-import csv
-import json
-import re
-import shutil
 import sys
-from pathlib import Path
 
 import numpy as np
 import rasterio
 from PIL import Image
 
-CHIP_SIZE = 200
-UPSCALE_SIZE = 640
-TILE_SIZE = 5000
-TRAVERSAL = TILE_SIZE - CHIP_SIZE  # 4800
+from buspad.chip.defs import CHIP_SIZE, CRS, TILE_SIZE, TRAVERSAL, UPSCALE_SIZE
+from pathlib import Path
 
-
-def find_project_root() -> Path:
-    current = Path(__file__).resolve().parent
-    for parent in [current, *current.parents]:
-        if (parent / ".project-root").exists():
-            return parent
-    raise FileNotFoundError("Could not locate project root. Is .project-root present?")
-
-
-PROJECT_ROOT = find_project_root()
-
-def parse_input_path(input_path: str) -> dict | None:
-    """Extract year and boro from the input directory convention.
-
-    Expected pattern: .../nyc_ortho_{YYYY}/boro_{boro_name}_sp{YY}
-    Returns dict with keys 'year' and 'boro', or None if no match.
-    """
-    p = Path(input_path).resolve()
-    leaf = p.name
-    parent = p.parent.name
-
-    leaf_match = re.match(r"^boro_(.+)_sp(\d{2})$", leaf)
-    parent_match = re.match(r"^nyc_ortho_(\d{4})$", parent)
-
-    if not leaf_match or not parent_match:
-        return None
-
-    year_full = parent_match.group(1)
-    boro = leaf_match.group(1)
-    year_short = leaf_match.group(2)
-
-    if year_full[-2:] != year_short:
-        print(
-            f"WARNING: year mismatch — directory says {year_full}, "
-            f"suffix says sp{year_short}. Using {year_full}.",
-            file=sys.stderr,
-        )
-
-    return {"year": year_full, "boro": boro}
-
-
-def build_output_dir(input_path: str, output_override: str | None) -> Path:
-    """Derive output directory from input path convention, or use override."""
-    if output_override:
-        return Path(output_override)
-
-    parsed = parse_input_path(input_path)
-    if parsed is None:
-        print(
-            "ERROR: input path does not match expected convention "
-            "(nyc_ortho_YYYY/boro_NAME_spYY). Provide --output-dir explicitly.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    return PROJECT_ROOT / "output" / "chips" / f"inference_{parsed['year']}" / f"{parsed['boro']}_{parsed['year']}"
 
 def validate_overlap(overlap_pct: int) -> int:
-    """Validate overlap percentage and return stride in pixels."""
+    """Validate overlap percentage and return stride in pixels.
+
+    Raises SystemExit if the overlap yields an invalid or indivisible stride.
+    """
     if overlap_pct == 0:
         return CHIP_SIZE
 
     stride = int(CHIP_SIZE * (1 - overlap_pct / 100))
 
     if stride <= 0 or stride > CHIP_SIZE:
-        print(f"ERROR: overlap {overlap_pct}% yields invalid stride {stride}.", file=sys.stderr)
-        sys.exit(1)
+        print(
+            f"ERROR: overlap {overlap_pct}% yields invalid stride {stride}.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
 
     if TRAVERSAL % stride != 0:
         print(
             f"ERROR: overlap {overlap_pct}% → stride {stride}px does not divide "
-            f"{TRAVERSAL} evenly. Choose an overlap that yields a factor of {TRAVERSAL}.",
+            f"{TRAVERSAL} evenly. Choose an overlap that yields a factor of "
+            f"{TRAVERSAL}.",
             file=sys.stderr,
         )
-        sys.exit(1)
+        raise SystemExit(1)
 
     return stride
 
@@ -110,30 +45,42 @@ def chip_tile(
     stride: int,
     img_format: str,
 ) -> tuple[list[dict], dict]:
-    """Chip a single tile. Returns (chip_records, geotransform_dict)."""
+    """Chip a single tile into patches and upscale for inference.
+
+    Reads a JP2 tile, extracts CHIP_SIZE×CHIP_SIZE patches at the given
+    stride, upscales each to UPSCALE_SIZE×UPSCALE_SIZE, and writes them
+    to ``output_dir / "chips"``.
+
+    Returns
+    -------
+    records : list[dict]
+        Per-chip metadata (filename, x/y offsets) for the offset CSV.
+    gt_entry : dict
+        Geotransform and CRS for this tile, keyed for geotransforms.json.
+        Empty dict if the tile was skipped.
+    """
     ext = "jpg" if img_format == "jpg" else "png"
     tile_stem = tile_path.stem
 
     with rasterio.open(tile_path) as src:
-        # Read first 3 bands (drop 4th if present)
         band_count = min(src.count, 3)
-        data = src.read(list(range(1, band_count + 1)))  # shape: (C, H, W)
+        data = src.read(list(range(1, band_count + 1)))  # (C, H, W)
         t = src.transform
         gt = {"a": t.a, "b": t.b, "c": t.c, "d": t.d, "e": t.e, "f": t.f}
 
-    # data shape: (C, H, W) → transpose to (H, W, C) for PIL
-    img_array = np.transpose(data, (1, 2, 0))
+    img_array = np.transpose(data, (1, 2, 0))  # (H, W, C)
     h, w = img_array.shape[:2]
 
     if h != TILE_SIZE or w != TILE_SIZE:
         print(
-            f"WARNING: {tile_path.name} is {w}x{h}, expected {TILE_SIZE}x{TILE_SIZE}. Skipping.",
+            f"WARNING: {tile_path.name} is {w}×{h}, expected "
+            f"{TILE_SIZE}×{TILE_SIZE}. Skipping.",
             file=sys.stderr,
         )
         return [], {}
 
     chips_per_axis = (TRAVERSAL // stride) + 1
-    records = []
+    records: list[dict] = []
 
     for row_idx in range(chips_per_axis):
         for col_idx in range(chips_per_axis):
@@ -157,123 +104,4 @@ def chip_tile(
                 }
             )
 
-    gt_entry = {"transform": gt, "crs": "EPSG:6539"}
-    return records, gt_entry
-
-
-def write_tile_csv(output_dir: Path, tile_stem: str, records: list[dict]):
-    """Write per-tile offset CSV."""
-    csv_path = output_dir / "offsets" / f"{tile_stem}_offsets.csv"
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["chip_filename", "x_offset", "y_offset"])
-        writer.writeheader()
-        writer.writerows(records)
-
-
-def zip_chips(output_dir: Path):
-    """Create chips.zip containing the chips/ directory, placed alongside it."""
-    zip_path = output_dir / "chips"  # shutil appends .zip
-    print(f"Zipping chips → {zip_path}.zip ...", end=" ", flush=True)
-    shutil.make_archive(
-        str(zip_path),
-        "zip",
-        root_dir=str(output_dir),
-        base_dir="chips",
-    )
-    print("done.")
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Stage 1: Chip JP2 tiles for YOLO inference.")
-    parser.add_argument("input_dir", help="Path to directory containing .jp2 tiles.")
-    parser.add_argument(
-        "--overlap",
-        type=int,
-        default=20,
-        help="Overlap percentage (default: 20). Must yield a stride that divides 4800.",
-    )
-    parser.add_argument(
-        "--format",
-        choices=["jpg", "png"],
-        default="jpg",
-        dest="img_format",
-        help="Output image format (default: jpg).",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=None,
-        help="Explicit output directory. Overrides convention-based derivation.",
-    )
-    parser.add_argument(
-        "--no-zip",
-        action="store_true",
-        help="Skip zip creation for chips directory.",
-    )
-    args = parser.parse_args()
-
-    input_dir = Path(args.input_dir)
-    if not input_dir.is_dir():
-        print(f"ERROR: {input_dir} is not a directory.", file=sys.stderr)
-        sys.exit(1)
-
-    stride = validate_overlap(args.overlap)
-    output_dir = build_output_dir(args.input_dir, args.output_dir)
-
-    # Create output subdirectories
-    (output_dir / "chips").mkdir(parents=True, exist_ok=True)
-    (output_dir / "offsets").mkdir(parents=True, exist_ok=True)
-
-    tiles = sorted(input_dir.glob("*.jp2"))
-    if not tiles:
-        print(f"ERROR: no .jp2 files found in {input_dir}.", file=sys.stderr)
-        sys.exit(1)
-
-    chips_per_axis = (TRAVERSAL // stride) + 1
-    total_chips_per_tile = chips_per_axis ** 2
-    print(
-        f"Config: stride={stride}px, overlap={args.overlap}%, "
-        f"{chips_per_axis}x{chips_per_axis}={total_chips_per_tile} chips/tile, "
-        f"{len(tiles)} tiles, format={args.img_format}"
-    )
-    print(f"Output: {output_dir}")
-
-    geotransforms = {}
-
-    for i, tile_path in enumerate(tiles, 1):
-        print(f"[{i}/{len(tiles)}] {tile_path.name} ...", end=" ", flush=True)
-
-        try:
-            records, gt_entry = chip_tile(tile_path, output_dir, stride, args.img_format)
-        except OSError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            continue
-
-        if not records:
-            print("SKIPPED")
-            continue
-
-        try:
-            write_tile_csv(output_dir, tile_path.stem, records)
-        except OSError as e:
-            print(f"ERROR writing offsets: {e}", file=sys.stderr)
-            continue
-
-        geotransforms[tile_path.name] = gt_entry
-        print(f"{len(records)} chips")
-
-    # Write geotransform reference
-    gt_path = output_dir / "geotransforms.json"
-    with open(gt_path, "w") as f:
-        json.dump(geotransforms, f, indent=2)
-
-    print(f"\n{len(geotransforms)} tiles processed → {gt_path}")
-
-    # Zip chips for Colab upload
-    if not args.no_zip:
-        zip_chips(output_dir)
-
-    print("Done.")
-
-
-if __name__ == "__main__":
-    main()
+    return records, {"transform": gt, "crs": CRS}
