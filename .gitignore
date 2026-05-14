@@ -36,16 +36,7 @@ env/
 *.joblib
 *.safetensors
 checkpoints/
-models/**
-
-# Allow final product models
-!models/final/
-!models/final/*/
-!models/final/*.pt
-!models/final/*.onnx
-!models/final/*.mlpackage
-!models/final/*.xml
-!models/final/*.bin
+models/
 
 # TensorBoard logs
 *.tfevents*
@@ -85,7 +76,7 @@ models/**
 # ============================================
 # Other Data & Output
 # ============================================
-data/**
+data/
 output/
 results/
 predictions/
@@ -99,16 +90,6 @@ qgis/
 *.zip
 *.tar.gz
 *.7z
-
-# Allow cd boundaries
-!data/boundaries/
-!data/boundaries/*/
-!data/boundaries/**/*.shp
-!data/boundaries/**/*.shx
-!data/boundaries/**/*.dbf
-!data/boundaries/**/*.prj
-!data/boundaries/**/*.cpg
-!data/boundaries/**/*.sr.lock
 
 # ============================================
 # Config & Secrets
@@ -136,3 +117,12 @@ desktop.ini
 archive/
 subset_pytest/
 scratch.md
+
+# ============================================
+# Package Resources (tracked)
+# ============================================
+# Static project data and release models installed
+# with the package. Negations must come last to
+# override global patterns above.
+!src/buspad/resources/
+!src/buspad/resources/**
