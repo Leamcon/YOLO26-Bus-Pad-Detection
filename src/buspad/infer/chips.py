@@ -10,8 +10,8 @@ CHIP_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 def group_chips_by_tile(chip_dir: Path) -> dict[str, list[Path]]:
     """Group chip files by parent tile stem.
 
-    Expects filenames like: {tile_stem}_r{row}_c{col}.{ext}
-    Groups by everything before the last _rXXX_cXXX segment.
+    Expects filenames like ``{tile_stem}_r{row}_c{col}.{ext}``.
+    Groups by everything before the last ``_rXXX_cXXX`` segment.
     """
     groups: dict[str, list[Path]] = defaultdict(list)
 
@@ -35,8 +35,8 @@ def group_chips_by_tile(chip_dir: Path) -> dict[str, list[Path]]:
 def _parse_tile_stem(chip_path: Path) -> str | None:
     """Extract the tile stem from a chip filename.
 
-    Filenames follow the pattern {tile_stem}_r{row}_c{col}.{ext}.
-    Returns the tile_stem portion or None if the pattern doesn't match.
+    Filenames follow the pattern ``{tile_stem}_r{row}_c{col}.{ext}``.
+    Returns the tile_stem portion or ``None`` if the pattern doesn't match.
     """
     name = chip_path.stem
     parts = name.rsplit("_c", 1)

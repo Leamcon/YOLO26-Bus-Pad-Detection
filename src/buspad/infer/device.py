@@ -2,7 +2,7 @@
 
 import sys
 
-from inference.formats import ModelFormat, FORMAT_DEVICES
+from buspad.infer.formats import ModelFormat, FORMAT_DEVICES
 
 
 def resolve_device(requested: str | None, fmt: ModelFormat) -> str:
@@ -19,7 +19,8 @@ def resolve_device(requested: str | None, fmt: ModelFormat) -> str:
             print(
                 f"ERROR: device '{requested}' is not compatible with "
                 f"format '{fmt.value}'.\n"
-                f"  Valid devices for {fmt.value}: {', '.join(sorted(valid))}",
+                f"  Valid devices for {fmt.value}: "
+                f"{', '.join(sorted(valid))}",
                 file=sys.stderr,
             )
             sys.exit(1)

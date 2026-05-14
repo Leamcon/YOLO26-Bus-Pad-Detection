@@ -11,7 +11,7 @@ def load_model(model_path: Path) -> YOLO:
     Ultralytics handles dispatch to the appropriate runtime backend
     based on the file extension / directory structure.  Exported formats
     (CoreML, ONNX, OpenVINO) do not embed task metadata, so we
-    explicitly set task='detect'.
+    explicitly set ``task='detect'``.
     """
     return YOLO(str(model_path), task="detect")
 
@@ -24,7 +24,7 @@ def run_inference_for_tile(
     device: str,
 ) -> list[dict]:
     """Run batched inference on chips for a single tile."""
-    records = []
+    records: list[dict] = []
 
     for batch_start in range(0, len(chip_paths), batch_size):
         batch = chip_paths[batch_start : batch_start + batch_size]
@@ -41,18 +41,18 @@ def run_inference_for_tile(
 
             xyxy = boxes.xyxy.cpu().numpy()
             confs = boxes.conf.cpu().numpy()
-            class_ids = boxes.cls.cpu().numpy().astype(int)
+            cls = boxes.cls.cpu().numpy().astype(int)
 
-            for i in range(len(boxes)):
+            for j in range(len(boxes)):
                 records.append(
                     {
                         "chip_filename": chip_path.name,
-                        "x1": f"{xyxy[i][0]:.2f}",
-                        "y1": f"{xyxy[i][1]:.2f}",
-                        "x2": f"{xyxy[i][2]:.2f}",
-                        "y2": f"{xyxy[i][3]:.2f}",
-                        "confidence": f"{confs[i]:.4f}",
-                        "class_id": class_ids[i],
+                        "x1": f"{xyxy[j][0]:.2f}",
+                        "y1": f"{xyxy[j][1]:.2f}",
+                        "x2": f"{xyxy[j][2]:.2f}",
+                        "y2": f"{xyxy[j][3]:.2f}",
+                        "confidence": f"{confs[j]:.4f}",
+                        "class_id": cls[j],
                     }
                 )
 

@@ -28,10 +28,10 @@ FORMAT_RUNTIME: dict[ModelFormat, str] = {
     ModelFormat.OPENVINO: "openvino",
 }
 
-# Maximum batch size supported per format.  Ultralytics' non-PyTorch
-# backends do not reliably handle multi-image batches.
+# Maximum batch size per format.  Ultralytics' non-PyTorch backends
+# do not reliably handle multi-image batches.
 FORMAT_MAX_BATCH: dict[ModelFormat, int | None] = {
-    ModelFormat.PT: None,           # no limit
+    ModelFormat.PT: None,
     ModelFormat.ONNX: 1,
     ModelFormat.COREML: 1,
     ModelFormat.OPENVINO: 1,
@@ -57,12 +57,12 @@ def clamp_batch_size(requested: int, fmt: ModelFormat) -> int:
 def is_valid_model_path(model_path: Path) -> bool:
     """Check whether the path exists and matches a known format."""
     if model_path.is_file():
-        return model_path.suffix.lower() in {".pt", ".onnx", ".mlmodel", ".xml"}
+        return model_path.suffix.lower() in {
+            ".pt", ".onnx", ".mlmodel", ".xml",
+        }
     if model_path.is_dir():
-        # CoreML .mlpackage or OpenVINO model directory
         if model_path.suffix.lower() == ".mlpackage":
             return True
-        # OpenVINO directory: must contain at least one .xml + .bin pair
         xmls = list(model_path.glob("*.xml"))
         bins = list(model_path.glob("*.bin"))
         return len(xmls) > 0 and len(bins) > 0
@@ -72,7 +72,7 @@ def is_valid_model_path(model_path: Path) -> bool:
 def detect_format(model_path: Path) -> ModelFormat:
     """Determine model format from the path.
 
-    Raises SystemExit on unrecognised format.
+    Raises ``SystemExit`` on unrecognised format.
     """
     suffix = model_path.suffix.lower()
 
@@ -85,7 +85,6 @@ def detect_format(model_path: Path) -> ModelFormat:
     if suffix == ".xml":
         return ModelFormat.OPENVINO
 
-    # Directory without a recognised extension — probe contents
     if model_path.is_dir():
         xmls = list(model_path.glob("*.xml"))
         bins = list(model_path.glob("*.bin"))
@@ -102,7 +101,7 @@ def detect_format(model_path: Path) -> ModelFormat:
 def check_runtime(fmt: ModelFormat) -> None:
     """Verify the required runtime package is importable.
 
-    Raises SystemExit with an install hint if the import fails.
+    Raises ``SystemExit`` with an install hint if the import fails.
     """
     import importlib
 
@@ -111,9 +110,9 @@ def check_runtime(fmt: ModelFormat) -> None:
         importlib.import_module(package)
     except ImportError:
         print(
-            f"ERROR: format '{fmt.value}' requires the '{package}' package, "
-            f"which is not installed.\n"
-            f"  Install it with: pip install {package}",
+            f"ERROR: format '{fmt.value}' requires the '{package}' "
+            f"package, which is not installed.\n"
+            f"  Install it with:  pip install {package}",
             file=sys.stderr,
         )
         sys.exit(1)
