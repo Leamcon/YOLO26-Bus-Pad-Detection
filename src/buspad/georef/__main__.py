@@ -1,5 +1,5 @@
-"""Entry point for `python -m buspad_georef`."""
+"""Entry point for ``python -m buspad.georef``."""
 
-from buspad_georef.cli import main
+from buspad.georef.cli import main
 
 main()

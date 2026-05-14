@@ -7,7 +7,7 @@ from pathlib import Path
 
 import geopandas as gpd
 
-from buspad_georef.defs import Detection
+from buspad.georef.defs import Detection
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +38,16 @@ def _detections_to_geodataframe(
 def write_detections(
     features: list[Detection],
     output_dir: Path,
+    stem: str,
     fmt: str = "shp",
     crs: str = "EPSG:6539",
 ) -> Path:
-    """Write detections to the specified format inside a containing directory.
+    """Write detections to the specified format.
 
     Args:
         features: Georeferenced detections.
         output_dir: Directory to create and write into.
+        stem: Filename stem (e.g. ``boro_bronx_2024``).
         fmt: Output format key (``shp`` or ``gpkg``).
         crs: Coordinate reference system string.
 
@@ -58,7 +60,7 @@ def write_detections(
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = output_dir / f"{output_dir.name}.{fmt}"
+    out_path = output_dir / f"{stem}.{fmt}"
 
     gdf = _detections_to_geodataframe(features, crs=crs)
     gdf.to_file(out_path, driver=SUPPORTED_FORMATS[fmt])

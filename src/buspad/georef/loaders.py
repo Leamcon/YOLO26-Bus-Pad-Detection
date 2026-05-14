@@ -9,7 +9,7 @@ from pathlib import Path
 
 from affine import Affine
 
-from buspad_georef.defs import ChipOffset
+from buspad.georef.defs import ChipOffset
 
 logger = logging.getLogger(__name__)
 

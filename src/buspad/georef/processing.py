@@ -9,7 +9,7 @@ from pathlib import Path
 from affine import Affine
 from shapely.geometry import Point
 
-from buspad_georef.defs import (
+from buspad.georef.defs import (
     PREDICTION_REQUIRED_FIELDS,
     SCALE_FACTOR,
     ChipOffset,
