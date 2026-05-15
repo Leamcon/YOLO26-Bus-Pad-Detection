@@ -29,7 +29,7 @@ dev = [
 
 [project.scripts]
 buspad-init = "buspad.init.cli:main"
-buspad-select = "buspad.cd_select.cli:main"
+buspad-cd-select = "buspad.cd_select.cli:main"
 buspad-chip = "buspad.chip.cli:main"
 buspad-infer = "buspad.infer.cli:main"
 buspad-georef = "buspad.georef.cli:main"
