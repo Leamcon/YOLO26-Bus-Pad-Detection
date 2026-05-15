@@ -27,7 +27,7 @@ pip install buspad[openvino]   # OpenVINO *WIP*
 Download the wheel from the latest GitHub Release and install with pip:
 
 ```
-pip install https://github.com/<OWNER>/<REPO>/releases/download/v1.0.0/buspad-1.0.0-py3-none-any.whl
+pip install https://github.com/Leamcon/YOLO26-Bus-Pad-Detection/releases/download/v1.0.0/buspad-1.0.0-py3-none-any.whl
 ```
 
 Replace the URL with the actual release asset link.
